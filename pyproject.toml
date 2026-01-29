@@ -1,5 +1,5 @@
 [project]
-name = "metall-parser"
+name = "ma-proxy"
 version = "0.1.0"
 description = ""
 authors = [
