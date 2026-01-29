@@ -213,11 +213,14 @@ class PageParser:
     @staticmethod
     def _parse_common_album_info(soup: BeautifulSoup, album_info: AlbumInformation):
         # common info
-        album_info.title = soup.find('h1', class_='album_name').text.strip()
+        album_name = soup.find('h1', class_='album_name')
+        album_info.id = int(album_name.find('a').get('href').split('/').pop())
+        album_info.title = album_name.text.strip()
         band_name = soup.find('h2', class_='band_name')
         album_info.band_name = band_name.text.strip()
-        album_info.band_id = band_name.find('a').get('href').split('/').pop()
+        album_info.band_id = int(band_name.find('a').get('href').split('/').pop())
         album_info.cover_url = soup.find(id='cover').get('href')
+        album_info.url = album_name.find('a').get('href')
     
         dt_elements = soup.find_all('dt')
         for dt in dt_elements:

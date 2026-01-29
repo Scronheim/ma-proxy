@@ -5,8 +5,9 @@ from .models import AlbumInfoResponse
 
 
 class AlbumRouter(APIRouter):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, page_handler: MetalArchivesPageHandler, *args, **kwargs):
         super().__init__(prefix='/album', *args, **kwargs)
+        self.page_handler = page_handler
         self.add_api_route(
             path='/{album_id}',
             endpoint=self.parse_album,
@@ -15,10 +16,8 @@ class AlbumRouter(APIRouter):
             methods=["GET", ]
         )
 
-    @staticmethod
-    async def parse_album(album_id: str) -> AlbumInfoResponse:
-        handler = MetalArchivesPageHandler()
-        info = handler.get_album_info(url='https://www.metal-archives.com/albums/view/id/{album_id}'.format(album_id=album_id))
+    async def parse_album(self, album_id: str) -> AlbumInfoResponse:
+        info = self.page_handler.get_album_info(url='https://www.metal-archives.com/albums/view/id/{album_id}'.format(album_id=album_id))
         return AlbumInfoResponse(
             success=True if info.error is None else False,
             album_info=info.data,

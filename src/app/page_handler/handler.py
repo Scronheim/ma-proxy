@@ -10,44 +10,43 @@ from app.page_handler.models import PageInfo
 class MetalArchivesPageHandler:
     _instance: Optional["MetalArchivesPageHandler"] = None
 
-    def __new__(cls, *args, **kwargs) -> "MetalArchivesPageHandler":
+    def __new__(cls, sb: SB, *args, **kwargs) -> "MetalArchivesPageHandler":
         if cls._instance is None:
             cls._instance = super().__new__(cls)
         return cls._instance
 
-    def __init__(self):
+    def __init__(self, sb: SB):
         self._parser_cls = PageParser
+        self._sb = sb
 
     def get_band_info(self, url: str) -> PageInfo:
-        data = self._get_page(url)
+        data = self._get_data(url)
         if data.html is not None:
             data.data = self._parser_cls.extract_band_info(data=data.html)
         return data
     
     def search_band_info(self, url: str) -> PageInfo:
-        data = self._get_page(url)
+        data = self._get_data(url)
         if data.html is not None:
             data.data = self._parser_cls.extract_search_info(data=data.html)
         return data
     
     def get_album_info(self, url: str) -> PageInfo:
-        data = self._get_page(url)
+        data = self._get_data(url)
         if data.html is not None:
             data.data = self._parser_cls.extract_album_info(data=data.html)
         return data
 
-    @staticmethod
     def _get_data(
-        sb: SB,
+        self,
         url: str,
-        start_time: float,
         wait_time: int = 3,
         save_screenshot: bool = False
     ) -> PageInfo:
+        start_time = time.time()
         try:
-            print(f"Открываю {url} ...")
-            sb.uc_open_with_reconnect(url, reconnect_time=4)
-            # sb.uc_gui_click_captcha()
+            self._sb.uc_open_with_tab(url)
+            # self._sb.uc_gui_click_captcha()
             # time.sleep(wait_time)
             # sb.assert_element("body", timeout=10)
 
@@ -55,7 +54,7 @@ class MetalArchivesPageHandler:
             return PageInfo(
                 url=url,
                 processing_time=round(time.time() - start_time, 2),
-                html=sb.get_page_source(),
+                html=self._sb.get_page_source(),
             )
 
         except Exception as err:
@@ -63,7 +62,7 @@ class MetalArchivesPageHandler:
             if save_screenshot:
                 try:
                     screenshot_name = f"error_{int(time.time())}.png"
-                    sb.save_screenshot(screenshot_name)
+                    self._sb.save_screenshot(screenshot_name)
                     error_msg += f" (скриншот сохранен как {screenshot_name})"
                 except:
                     pass
@@ -73,21 +72,3 @@ class MetalArchivesPageHandler:
                 processing_time=round(time.time() - start_time, 2),
                 error=error_msg,
             )
-
-    def _get_page(
-        self,
-        url: str,
-        wait_time: int = 3,
-        save_screenshot: bool = False
-    ) -> PageInfo:
-        start_time = time.time()
-        try:
-            with SB(uc=True, incognito=True, locale="en") as sb:
-                return self._get_data(sb, url, start_time, wait_time, save_screenshot)
-        except Exception as err:
-            return PageInfo(
-                url=url,
-                processing_time=round(time.time() - start_time, 2),
-                error=f"Ошибка при инициализации SeleniumBase: {str(err)}",
-            )
-
