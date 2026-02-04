@@ -1,12 +1,5 @@
 from dataclasses import dataclass, field
 
-
-@dataclass
-class UIDAndSlug:
-    uid: str | None = None
-    slug: str | None = None
-
-
 @dataclass
 class BandLocationInfo:
     country: str | None = None
@@ -68,6 +61,7 @@ class AlbumShortInformation:
 
 @dataclass
 class BandInformation:
+    id: int | None = None
     name: str | None = None
     country: str | None = None
     city: str | None = None
@@ -81,8 +75,6 @@ class BandInformation:
     discography: list[AlbumInformation | AlbumShortInformation] = field(default_factory=list)
     photo_url: str | None = None
     logo_url: str | None = None
-    id: int | None = None
-    url_slug: str | None = None
     parsing_error: str | None = None
 
 @dataclass

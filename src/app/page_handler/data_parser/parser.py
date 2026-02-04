@@ -14,7 +14,6 @@ from app.page_handler.data_parser.models import (
     BandLocationInfo,
     MemberLineUp,
     StatusAndDateInfo,
-    UIDAndSlug,
     Track
 )
 
@@ -54,7 +53,9 @@ class PageParser:
         soup = BeautifulSoup(data, 'html.parser')
         band_info = BandInformation()
         try:
-            band_info.name = cls._get_band_name(soup)
+            band_name, band_id = cls._get_band_name_and_id(soup)
+            band_info.id = band_id
+            band_info.name = band_name
 
             location, status_and_dates, label, themes = cls._get_band_common_info(soup)
             band_info.country = location.country
@@ -67,18 +68,17 @@ class PageParser:
 
             band_info.genres = cls._get_genre(soup)
             band_info.current_lineup = cls._get_current_lineup(soup)
-            band_info.discography = cls._get_discography(soup)
             band_info.photo_url = cls._get_photo_url(soup)
             band_info.logo_url = cls._get_logo_url(soup)
-
-            band_id_and_slug = cls._get_band_uid(html_data=data)
-            band_info.id = band_id_and_slug.uid
-            band_info.url_slug = band_id_and_slug.slug
-
         except Exception as err:
             band_info.parsing_error = f"Ошибка при разборе HTML: {str(err)}"
 
         return band_info
+    
+    @classmethod
+    def extract_discography_info(cls, data: str) -> AlbumInformation:
+        soup = BeautifulSoup(data, 'html.parser')
+        return cls._get_discography(soup)
     
     @classmethod
     def extract_album_info(cls, data: str) -> AlbumInformation:
@@ -92,23 +92,22 @@ class PageParser:
         return album_info
 
     @staticmethod
-    def _get_band_name(page_soup: BeautifulSoup) -> str | None:
-        if band_name_elem := page_soup.find('h1', class_='band_name'):
-            return band_name_elem.text.strip()
-        elif band_name_elem := page_soup.find('h2', class_='band_name'):
-            return band_name_elem.text.strip()
+    def _get_band_name_and_id(soup: BeautifulSoup) -> list[str, int]:
+        band_name_elem = soup.find('h1', class_='band_name')
+        if not band_name_elem:
+            band_name_elem = soup.find('h2', class_='band_name')
+        band_id = band_name_elem.find('a').get('href').split('/').pop()
+        return band_name_elem.text.strip(), int(band_id)
     
     @staticmethod
     def _get_album_info(cls, soup: BeautifulSoup) -> AlbumInformation:
         """Получает информацию об альбоме из страницы"""
         album_info = AlbumInformation()
         try:
-            
             album_info = cls._parse_common_album_info(soup, album_info)
             album_info.tracklist = cls._parse_tracklist(cls, soup)
 
             return album_info
-            
         except (AttributeError, IndexError) as err:
             album_info.parsing_error = f"Ошибка при разборе HTML: {str(err)}"
             return None
@@ -285,22 +284,23 @@ class PageParser:
     def _get_current_lineup(cls, soup: BeautifulSoup) -> list[MemberLineUp]:
         current_lineup_table = soup.find('div', id='band_tab_members_current')
         lineup_table = current_lineup_table.find('table', class_='lineupTable')
-        rows = lineup_table.find_all('tr', class_='lineupRow')
         members = []
-        for member in rows:
-            member_link = member.find('a')
-            members.append(MemberLineUp(name=member_link.text.strip(), role=re.sub(r'\s+', ' ', member.find_all('td')[1].text).strip(), url=member_link.get('href').strip()))
+        if lineup_table:
+            rows = lineup_table.find_all('tr', class_='lineupRow')
+            for member in rows:
+                member_link = member.find('a')
+                members.append(MemberLineUp(name=member_link.text.strip(), role=re.sub(r'\s+', ' ', member.find_all('td')[1].text).strip(), url=member_link.get('href').strip()))
             
         return members
 
     @staticmethod
     def _get_discography(soup: BeautifulSoup) -> list[AlbumInformation]:
         result = []
-        discography_div = soup.find('div', id='band_disco')
-        if not discography_div:
+        discography_table = soup.find('table', class_='display discog')
+        if not discography_table:
             return result
 
-        album_rows = discography_div.find_all('tr')
+        album_rows = discography_table.find_all('tr')
         for row in album_rows:
             cols = row.find_all('td')
             count_columns = len(cols)
@@ -324,16 +324,14 @@ class PageParser:
 
     @staticmethod
     def _get_photo_url(soup: BeautifulSoup) -> str | None:
-        return soup.find(id='photo').get('href')
+        photo = soup.find('a', id='photo')
+        if photo:
+            return photo.get('href')
+        return None
     
     @staticmethod
     def _get_logo_url(soup: BeautifulSoup) -> str | None:
-        return soup.find(id='logo').get('href')
-
-    @classmethod
-    def _get_band_uid(cls, html_data: str) -> UIDAndSlug:
-        data = UIDAndSlug()
-        if url_match := re.search(cls.uid_patter, html_data):
-            data.uid = int(url_match.group('uid'))
-            data.slug = url_match.group('slug')
-        return data
+        logo = soup.find('a', id='logo')
+        if logo:
+            return logo.get('href')
+        return None
