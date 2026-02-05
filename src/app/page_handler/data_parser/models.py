@@ -35,13 +35,12 @@ class Track:
     cdNumber: int | None = None
     side: str | None = None
 
-
 @dataclass
 class AlbumInformation:
     id: int | None = None
     title: str | None = None
     band_name: str | None = None
-    band_id: str | None = None
+    band_id: int | None = None
     type: str | None = None
     release_date: str | None = None
     label: str | None = None

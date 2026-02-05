@@ -49,15 +49,14 @@ class MetalArchivesPageHandler:
         self,
         url: str,
         wait_time: int = 3,
-        save_screenshot: bool = False
+        save_screenshot: bool = True
     ) -> PageInfo:
         start_time = time.time()
         try:
             self._sb.uc_open_with_tab(url)
-            # self._sb.uc_gui_click_captcha()
-            # time.sleep(wait_time)
-            # sb.assert_element("body", timeout=10)
-
+            #self._sb.uc_gui_click_captcha()
+            #self._sb.uc_gui_click_cf()
+            #time.sleep(wait_time)
             # Получаем HTML и извлекаем информацию
             return PageInfo(
                 url=url,

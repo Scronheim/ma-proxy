@@ -202,7 +202,7 @@ class PageParser:
             duration = duration_cell.get_text(strip=True)
             
             # Формируем результат
-            return Track(title=title, number=int(track_number), duration=duration, cdNumber=cd_number, side=current_side if current_side else 'Unknown')
+            return Track(title=title, number=int(track_number), duration=duration, cdNumber=cd_number, side=current_side if current_side else None)
             
         except (AttributeError, IndexError, ValueError) as e:
             # Логирование ошибки (в production можно использовать logging)
@@ -216,7 +216,7 @@ class PageParser:
         album_info.id = int(album_name.find('a').get('href').split('/').pop())
         album_info.title = album_name.text.strip()
         band_name = soup.find('h2', class_='band_name')
-        album_info.band_name = band_name.text.strip()
+        album_info.band_name = band_name.text.replace('\n', '').replace('\t', '').strip()
         album_info.band_id = int(band_name.find('a').get('href').split('/').pop())
         album_info.cover_url = soup.find(id='cover').get('href')
         album_info.url = album_name.find('a').get('href')
