@@ -82,3 +82,11 @@ class BandSearch:
     name: str | None = None
     genre: str | None = None
     country: str | None = None
+
+@dataclass
+class AlbumSearch:
+    id: int | None = None
+    band_name: str | None = None
+    title: str | None = None
+    type: str | None = None
+    release_date: str | None = None

@@ -11,10 +11,10 @@ class BandInfoResponse(BaseModel):
     url: str
     processing_time: float
 
-class BandSearchResponse(BaseModel):
+class SearchResponse(BaseModel):
     """Модель ответа поиска группы"""
     success: bool
-    bands: list[BandSearch] | None = None
+    results: list[BandSearch] | None = None
     error: str | None = None
     url: str
     processing_time: float

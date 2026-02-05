@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Query
 from urllib.parse import quote
+from fastapi.middleware.cors import CORSMiddleware
 
 from datetime import datetime
 from typing import Union, Optional, Dict, Tuple
@@ -11,7 +12,7 @@ import asyncio
 from app.page_handler.handler import MetalArchivesPageHandler
 from app.api.routes.album import AlbumRouter
 from app.page_handler.data_parser.models import BandInformation, AlbumInformation
-from .models import BandInfoResponse, BandSearchResponse
+from .models import BandInfoResponse, SearchResponse
 
 
 class BandRouter(APIRouter):
@@ -28,7 +29,7 @@ class BandRouter(APIRouter):
         self.add_api_route(
             path='/search',
             endpoint=self.search_bands,
-            response_model=BandSearchResponse,
+            response_model=SearchResponse,
             tags=['Parsing'],
             methods=["GET", ]
         )
@@ -87,7 +88,7 @@ class BandRouter(APIRouter):
             )    
         else:
             info = self.page_handler.get_band_info(url=url)
-            await self._replace_band_in_db(info.data)
+            asyncio.create_task(self._replace_band_in_db(info.data))
         return BandInfoResponse(
             success=True if info.error is None else False,
             band_info=info.data,
@@ -96,7 +97,7 @@ class BandRouter(APIRouter):
             processing_time=info.processing_time,
         )
     
-    async def search_bands(self, query: str = Query(..., description="Search query")):
+    async def search_bands(self, query: str) -> SearchResponse:
         """
         Search for bands on Metal Archives
         """
@@ -104,9 +105,9 @@ class BandRouter(APIRouter):
         search_url = f"https://www.metal-archives.com/search/ajax-band-search/?field=name&query={encoded_query}"
         info = self.page_handler.search_band_info(search_url)
         
-        return BandSearchResponse(
+        return SearchResponse(
             success=True if info.error is None else False,
-            bands=info.data,
+            results=info.data,
             error=info.error,
             url=info.url,
             processing_time=info.processing_time,

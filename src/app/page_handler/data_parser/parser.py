@@ -6,9 +6,9 @@ from typing import Dict, List, Optional
 
 
 from app.page_handler.data_parser.models import (
-    Album,
     BandInformation,
     BandSearch,
+    AlbumSearch,
     AlbumShortInformation,
     AlbumInformation,
     BandLocationInfo,
@@ -22,7 +22,32 @@ class PageParser:
     uid_patter = r'/bands/(?P<slug>[^/]+)/(?P<uid>\d+)'
     
     @classmethod
-    def extract_search_info(cls, data: str) -> BandSearch:
+    def extract_search_album_info(cls, data: str) -> list[AlbumSearch]:
+        soup = BeautifulSoup(data, 'html.parser')
+        results = json.loads(soup.find('pre').text)['aaData']
+        albums = []
+        for album in results:
+            band_soup = BeautifulSoup(album[0], 'html.parser').find('a')
+            band_id = band_soup.get('href').split('/').pop()
+            band_name = band_soup.text.strip()
+            album_soup = BeautifulSoup(album[1], 'html.parser').find('a')
+            album_id = album_soup.get('href').split('/').pop()
+            album_name = album_soup.text.strip()
+            album_type = album[2]
+            album_release_date = album[3].split(' <!')[0]
+            
+            albums.append({
+                'id': int(album_id),
+                'band_id': band_id,
+                'band_name': band_name,
+                'title': album_name,
+                'type': album_type,
+                'release_date': album_release_date
+            })
+        return albums
+    
+    @classmethod
+    def extract_search_band_info(cls, data: str) -> list[BandSearch]:
         soup = BeautifulSoup(data, 'html.parser')
         results = json.loads(soup.find('pre').text)['aaData']
         bands = []

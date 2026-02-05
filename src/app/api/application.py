@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes.root_router import RootRouter
 from app.page_handler.handler import MetalArchivesPageHandler
@@ -15,3 +16,10 @@ class MetalParserAPI(FastAPI):
         self.page_handler = page_handler
         router = RootRouter(page_handler=self.page_handler)
         self.include_router(router=router)
+        self.add_middleware(
+            CORSMiddleware,
+            allow_origins=["*"],
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"]
+        )

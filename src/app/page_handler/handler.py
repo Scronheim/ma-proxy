@@ -29,7 +29,13 @@ class MetalArchivesPageHandler:
     def search_band_info(self, url: str) -> PageInfo:
         data = self._get_data(url)
         if data.html is not None:
-            data.data = self._parser_cls.extract_search_info(data=data.html)
+            data.data = self._parser_cls.extract_search_band_info(data=data.html)
+        return data
+    
+    def search_album_info(self, url: str) -> PageInfo:
+        data = self._get_data(url)
+        if data.html is not None:
+            data.data = self._parser_cls.extract_search_album_info(data=data.html)
         return data
     
     def get_album_info(self, url: str) -> PageInfo:
