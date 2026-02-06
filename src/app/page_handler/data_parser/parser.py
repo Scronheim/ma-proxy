@@ -1,26 +1,26 @@
-import re
-import json
 import datetime
-from bs4 import BeautifulSoup, Tag
-from typing import Dict, List, Optional
+import json
+import re
+from typing import Dict, Optional
 
+from bs4 import BeautifulSoup, Tag
 
 from app.page_handler.data_parser.models import (
-    BandInformation,
-    BandSearch,
+    AlbumInformation,
     AlbumSearch,
     AlbumShortInformation,
-    AlbumInformation,
+    BandInformation,
     BandLocationInfo,
+    BandSearch,
     MemberLineUp,
     StatusAndDateInfo,
-    Track
+    Track,
 )
 
 
 class PageParser:
     uid_patter = r'/bands/(?P<slug>[^/]+)/(?P<uid>\d+)'
-    
+
     @classmethod
     def extract_search_album_info(cls, data: str) -> list[AlbumSearch]:
         soup = BeautifulSoup(data, 'html.parser')
@@ -35,17 +35,19 @@ class PageParser:
             album_name = album_soup.text.strip()
             album_type = album[2]
             album_release_date = album[3].split(' <!')[0]
-            
-            albums.append({
-                'id': int(album_id),
-                'band_id': band_id,
-                'band_name': band_name,
-                'title': album_name,
-                'type': album_type,
-                'release_date': album_release_date
-            })
+
+            albums.append(
+                AlbumSearch(
+                    id=int(album_id),
+                    band_name=band_name,
+                    band_id=int(band_id),
+                    title=album_name,
+                    type=album_type,
+                    release_date=album_release_date,
+                )
+            )
         return albums
-    
+
     @classmethod
     def extract_search_band_info(cls, data: str) -> list[BandSearch]:
         soup = BeautifulSoup(data, 'html.parser')
@@ -53,7 +55,7 @@ class PageParser:
         bands = []
         for item in results:
             html_content = item[0]
-            
+
             match = re.search(r'">([^<]+)</a>', html_content)
             name = match.group(1) if match else html_content
 
@@ -61,16 +63,15 @@ class PageParser:
             band_id = id_match.group(1) if id_match else None
             genre = item[1].strip()
             country = item[2].strip()
-            
-            band_info = {
-                'id': int(band_id),
-                'name': name,
-                'genre': genre,
-                'country': country
-            }
-            
-            bands.append(band_info)
-        
+            bands.append(
+                BandSearch(
+                    id=int(band_id),
+                    name=name,
+                    genre=genre,
+                    country=country,
+                )
+            )
+
         return bands
 
     @classmethod
@@ -100,12 +101,12 @@ class PageParser:
             band_info.parsing_error = f"Ошибка при разборе HTML: {str(err)}"
 
         return band_info
-    
+
     @classmethod
-    def extract_discography_info(cls, data: str) -> AlbumInformation:
+    def extract_discography_info(cls, data: str) -> list[AlbumShortInformation]:
         soup = BeautifulSoup(data, 'html.parser')
         return cls._get_discography(soup)
-    
+
     @classmethod
     def extract_album_info(cls, data: str) -> AlbumInformation:
         soup = BeautifulSoup(data, 'html.parser')
@@ -114,7 +115,7 @@ class PageParser:
             album_info = cls._get_album_info(cls, soup)
         except Exception as err:
             album_info.parsing_error = f"Ошибка при разборе HTML: {str(err)}"
-        
+
         return album_info
 
     @staticmethod
@@ -124,7 +125,7 @@ class PageParser:
             band_name_elem = soup.find('h2', class_='band_name')
         band_id = band_name_elem.find('a').get('href').split('/').pop()
         return band_name_elem.text.strip(), int(band_id)
-    
+
     @staticmethod
     def _get_album_info(cls, soup: BeautifulSoup) -> AlbumInformation:
         """Получает информацию об альбоме из страницы"""
@@ -137,7 +138,7 @@ class PageParser:
         except (AttributeError, IndexError) as err:
             album_info.parsing_error = f"Ошибка при разборе HTML: {str(err)}"
             return None
-        
+
     @staticmethod
     def _parse_tracklist(cls, soup: BeautifulSoup) -> list[Track]:
         """
@@ -150,22 +151,22 @@ class PageParser:
             Список словарей с ключами: number, title, duration, cdNumber, side
         """
         tracklist = []
-        
+
         # Находим таблицу с треклистом
         table = soup.find('table', {'class': 'display table_lyrics'})
         if not table:
             return []
-        
+
         # Извлекаем все строки таблицы
         rows = table.find_all('tr')
         if not rows:
             return []
-        
+
         # Инициализируем переменные для отслеживания текущей стороны и CD
         current_side = None
         cd_number = None
         track_counter = 0
-        
+
         for row in rows:
             # Проверяем, является ли строка заголовком стороны (Side A/B)
             side_cell = row.find('td', {'colspan': '4'})
@@ -174,26 +175,26 @@ class PageParser:
                 # Извлекаем сторону (A, B, C, D и т.д.)
                 if 'side' in side_text.lower():
                     current_side = side_text.split()[-1].strip()
-            
+
             # Пропускаем строки, которые не являются треками (суммарное время, технические строки)
             elif row.has_attr('class'):
                 row_classes = row.get('class', [])
-                
+
                 # Пропускаем скрытые строки с текстами песен
                 if 'displayNone' in row_classes:
                     continue
-                    
+
                 # Пропускаем строку с общим временем
                 if 'sideRow' in row_classes or row.find('strong'):
                     continue
-                
+
                 # Обрабатываем строки с треками (содержащие even/odd классы)
                 if 'even' in row_classes or 'odd' in row_classes:
                     track_data = cls._extract_track_data(row, current_side, cd_number)
                     if track_data:
                         tracklist.append(track_data)
                         track_counter += 1
-        
+
         return tracklist
 
     @staticmethod
@@ -214,27 +215,33 @@ class PageParser:
             cells = row.find_all('td')
             if len(cells) < 3:
                 return None
-            
+
             # Извлекаем номер трека (удаляем точку в конце)
             track_number_cell = cells[0]
             track_number = track_number_cell.get_text(strip=True).rstrip('.')
-            
+
             # Извлекаем название трека
             title_cell = cells[1]
             title = title_cell.get_text(strip=True)
-            
+
             # Извлекаем длительность
             duration_cell = cells[2]
             duration = duration_cell.get_text(strip=True)
-            
+
             # Формируем результат
-            return Track(title=title, number=int(track_number), duration=duration, cdNumber=cd_number, side=current_side if current_side else None)
-            
+            return Track(
+                title=title,
+                number=int(track_number),
+                duration=duration,
+                cdNumber=cd_number,
+                side=current_side if current_side else None
+            )
+
         except (AttributeError, IndexError, ValueError) as e:
             # Логирование ошибки (в production можно использовать logging)
             print(f"Ошибка при парсинге строки трека: {e}")
             return None
-    
+
     @staticmethod
     def _parse_common_album_info(soup: BeautifulSoup, album_info: AlbumInformation):
         # common info
@@ -247,12 +254,12 @@ class PageParser:
         album_info.cover_url = soup.find(id='cover').get('href')
         album_info.url = album_name.find('a').get('href')
         album_info.updated_at = datetime.datetime.now(datetime.timezone.utc)
-    
+
         dt_elements = soup.find_all('dt')
         for dt in dt_elements:
             dt_text = dt.text.strip().lower()
             dd = dt.find_next_sibling('dd')
-            
+
             if not dd:
                 continue
 
@@ -316,12 +323,18 @@ class PageParser:
             rows = lineup_table.find_all('tr', class_='lineupRow')
             for member in rows:
                 member_link = member.find('a')
-                members.append(MemberLineUp(name=member_link.text.strip(), role=re.sub(r'\s+', ' ', member.find_all('td')[1].text).strip(), url=member_link.get('href').strip()))
-            
+                members.append(
+                    MemberLineUp(
+                        name=member_link.text.strip(),
+                        role=re.sub(r'\s+', ' ', member.find_all('td')[1].text).strip(),
+                        url=member_link.get('href').strip()
+                    )
+                )
+
         return members
 
     @staticmethod
-    def _get_discography(soup: BeautifulSoup) -> list[AlbumInformation]:
+    def _get_discography(soup: BeautifulSoup) -> list[AlbumShortInformation]:
         result = []
         discography_table = soup.find('table', class_='display discog')
         if not discography_table:
@@ -335,18 +348,21 @@ class PageParser:
                 continue
 
             if album_link := cols[0].find('a'):
-                album = AlbumShortInformation(
-                    title=album_link.text.strip(),
-                    type=cols[1].text.strip(),
-                    release_date=cols[2].text.strip()
+                url = album_link.get('href', '')
+                result.append(
+                    AlbumShortInformation(
+                        title=album_link.text.strip(),
+                        type=cols[1].text.strip(),
+                        release_date=cols[2].text.strip(),
+                        url=url,
+                        id=int(url.split('/').pop())
+                    )
                 )
-
-                album.url = album_link.get('href', '')
-                album.id = int(album.url.split('/').pop())
-
-                result.append(album)
-        sorted_strings = sorted(result, key=lambda x: datetime.datetime.strptime(x.release_date, '%Y'), reverse=True)
-
+        sorted_strings = sorted(
+            result,
+            key=lambda album: datetime.datetime.strptime(album.release_date, '%Y'),
+            reverse=True
+        )
         return sorted_strings
 
     @staticmethod
@@ -355,7 +371,7 @@ class PageParser:
         if photo:
             return photo.get('href')
         return None
-    
+
     @staticmethod
     def _get_logo_url(soup: BeautifulSoup) -> str | None:
         logo = soup.find('a', id='logo')

@@ -1,4 +1,5 @@
 import uvicorn
+from pymongo import AsyncMongoClient
 from seleniumbase import SB
 
 
@@ -11,8 +12,9 @@ if __name__ == "__main__":
     print("Запуск FastAPI сервера...")
     print("Документация: http://localhost:8000/docs")
     print("Для получения информации о случайной группе: GET http://localhost:8000/api/band/random")
+
     with SB(uc=True, incognito=True, locale="en") as sb:
         page_handler = MetalArchivesPageHandler(sb=sb)
         app = MetalParserAPI(page_handler=page_handler)
         uvicorn.run(app, host="0.0.0.0", port=8000)
-        
+        # uvicorn.run(app, host="127.0.0.1", port=8000)

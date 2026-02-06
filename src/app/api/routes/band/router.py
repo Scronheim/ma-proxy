@@ -1,21 +1,18 @@
-from fastapi import APIRouter
+import dataclasses
+from datetime import datetime
+from typing import Dict, Union
 from urllib.parse import quote
 
-from datetime import datetime
-from typing import Union, Dict
-from bson.json_util import dumps
-import dataclasses
-import json
-import asyncio
+from fastapi import APIRouter, BackgroundTasks
+from pymongo import AsyncMongoClient
 
+from app.page_handler.data_parser.models import AlbumInformation, AlbumShortInformation, BandInformation, MemberLineUp
 from app.page_handler.handler import MetalArchivesPageHandler
-from app.api.routes.album import AlbumRouter
-from app.page_handler.data_parser.models import BandInformation, AlbumInformation
 from .models import BandInfoResponse, SearchResponse
 
 
 class BandRouter(APIRouter):
-    def __init__(self, page_handler: MetalArchivesPageHandler, db, *args, **kwargs):
+    def __init__(self, page_handler: MetalArchivesPageHandler, db: AsyncMongoClient, *args, **kwargs):
         super().__init__(prefix='/band', *args, **kwargs)
         self.page_handler = page_handler
         self.add_api_route(
@@ -40,11 +37,10 @@ class BandRouter(APIRouter):
             methods=["GET", ]
         )
         self.db = db
-        
 
-    async def parse_random(self) -> BandInfoResponse:
+    async def parse_random(self, background_tasks: BackgroundTasks) -> BandInfoResponse:
         info = self.page_handler.get_band_info(url='https://www.metal-archives.com/band/random')
-        asyncio.create_task(self._replace_band_in_db(info.data))
+        background_tasks.add_task(self._replace_band_in_db, band=info.data)
         return BandInfoResponse(
             success=True if info.error is None else False,
             band_info=info.data,
@@ -52,27 +48,25 @@ class BandRouter(APIRouter):
             url=info.url,
             processing_time=info.processing_time,
         )
-    
-    async def parse_band_by_id(self, band_id: str) -> BandInfoResponse:
+
+    async def parse_band_by_id(self, band_id: str, background_tasks: BackgroundTasks) -> BandInfoResponse:
         band = await self._check_band_in_db(int(band_id))
-        info = {}
         url = 'https://www.metal-archives.com/band/view/id/{band_id}'.format(band_id=band_id)
         if band:
-            diff = self._get_date_difference(band.updated_at)
+            diff = self._get_date_difference(target_date=band.updated_at)
             if diff['days'] > 15:
-                band = self.page_handler.get_band_info(url=url).data
-                asyncio.create_task(self._replace_band_in_db(band))
-                
+                page_info = self.page_handler.get_band_info(url=url)
+                background_tasks.add_task(self._replace_band_in_db, band=page_info.data)
+
             return BandInfoResponse(
                 success=True,
                 band_info=band,
-                error='',
-                url='',
+                url=url,
                 processing_time=0.0,
-            )    
-        else:
-            info = self.page_handler.get_band_info(url=url)
-            asyncio.create_task(self._replace_band_in_db(info.data))
+            )
+
+        info = self.page_handler.get_band_info(url=url)
+        background_tasks.add_task(self._replace_band_in_db, band=info.data)
         return BandInfoResponse(
             success=True if info.error is None else False,
             band_info=info.data,
@@ -80,7 +74,7 @@ class BandRouter(APIRouter):
             url=info.url,
             processing_time=info.processing_time,
         )
-    
+
     async def search_bands(self, query: str) -> SearchResponse:
         """
         Search for bands on Metal Archives
@@ -88,7 +82,7 @@ class BandRouter(APIRouter):
         encoded_query = quote(query.strip())
         search_url = f"https://www.metal-archives.com/search/ajax-band-search/?field=name&query={encoded_query}"
         info = self.page_handler.search_band_info(search_url)
-        
+
         return SearchResponse(
             success=True if info.error is None else False,
             results=info.data,
@@ -100,68 +94,85 @@ class BandRouter(APIRouter):
     async def _check_album_in_db(self, album_id: int) -> AlbumInformation | None:
         result = await self.db.albums.find_one({'id': album_id})
         return result
-    
+
     async def _check_band_in_db(self, band_id: int) -> BandInformation | None:
-        result = await self.db.bands.aggregate([
-            {
-                "$match": {
-                    "id": band_id,
+        result = await self.db.bands.aggregate(
+            [
+                {
+                    "$match": {
+                        "id": band_id,
+                    }
+                },
+                {"$limit": 1},
+                {
+                    "$lookup": {
+                        "from": "albums",
+                        "localField": "discography",
+                        "foreignField": "_id",
+                        "as": "discography"
+                    }
                 }
-            },
-            { "$limit": 1 },
-            {
-                "$lookup": {
-                    "from": "albums",
-                    "localField": "discography",
-                    "foreignField": "_id",
-                    "as": "discography"
-                }
-            }
-        ])
+            ]
+        )
         result = await result.to_list()
-        if len(result) > 0:
-            band = json.loads(dumps(result[0]))
-            return BandInformation(
-                    id=band['id'],
-                    name=band['name'],
-                    country=band['country'],
-                    city=band['city'],
-                    status=band['status'],
-                    formed_in=band['formed_in'],
-                    years_active=band['years_active'],
-                    genres=band['genres'],
-                    themes=band['themes'],
-                    current_lineup=band['current_lineup'],
-                    discography=band['discography'],
-                    label=band['label'],
-                    photo_url=band['photo_url'],
-                    logo_url=band['logo_url'],
-                    updated_at=band['updated_at']['$date'],
-                    parsing_error=band['parsing_error']
-            )
-        return None
-    
+        if not result:
+            return
+
+        band = result[0]
+        return BandInformation(
+            id=band['id'],
+            name=band['name'],
+            country=band['country'],
+            city=band['city'],
+            status=band['status'],
+            formed_in=band['formed_in'],
+            years_active=band['years_active'],
+            genres=band['genres'],
+            themes=band['themes'],
+            current_lineup=[
+                MemberLineUp(name=member["name"], role=member["role"], url=member["url"])
+                for member in band['current_lineup']
+            ],
+            discography=[
+                AlbumShortInformation(
+                    url=disc['url'],
+                    id=disc['id'],
+                    type=disc['type'],
+                    cover_url=disc['cover_url'],
+                    title=disc['title'],
+                    release_date=disc['release_date']
+                )
+                for disc in band['discography']
+            ],
+            label=band['label'],
+            photo_url=band['photo_url'],
+            logo_url=band['logo_url'],
+            updated_at=band['updated_at'],
+            parsing_error=band['parsing_error']
+        )
+
     async def _replace_band_in_db(self, band: BandInformation):
-        band_dict = dataclasses.asdict(band)
-        album_ids = []
-        for album in band_dict['discography']:
-            album_exist = await self.db.albums.find_one({'id': album['id']})
+        album_record_ids = []
+        for album in band.discography:
+            album_exist = await self.db.albums.find_one({'id': album.id})
             if album_exist:
-                album_ids.append(album_exist.get('_id'))
-            else:
-                router = AlbumRouter(page_handler=self.page_handler, db=self.db)
-                album_response = await router.parse_album(album_id=album['id'])
-                album_dict = dataclasses.asdict(album_response.album_info)
-                try:
-                    new_album = await self.db.albums.insert_one(album_dict)
-                    print(new_album)
-                except Exception as e:
-                    print(e)
-                album_ids.append(new_album.inserted_id)
-        band_dict['discography'] = album_ids
-        await self.db.bands.replace_one({'id': band.id}, band_dict, upsert=True)
-    
-    def _get_date_difference(self, target_date: Union[str, datetime], date_format: str = "%Y-%m-%dT%H:%M:%S.%fZ") -> Dict[str, int]:
+                album_record_ids.append(album_exist.get('_id'))
+                continue
+
+            album_page_info = self.page_handler.get_album_info(
+                url=f'https://www.metal-archives.com/albums/view/id/{album.id}'
+            )
+            new_album = await self.db.albums.insert_one(dataclasses.asdict(album_page_info.data))
+            album_record_ids.append(new_album.inserted_id)
+
+        band.discography = album_record_ids
+        await self.db.bands.replace_one({'id': band.id}, dataclasses.asdict(band), upsert=True)
+
+    @staticmethod
+    def _get_date_difference(
+        target_date: Union[str, datetime],
+        date_format: str = "%Y-%m-%dT%H:%M:%S.%fZ"
+    ) -> Dict[str, int]:
         current_datetime = datetime.now()
         if isinstance(target_date, str):
             try:
@@ -170,15 +181,15 @@ class BandRouter(APIRouter):
                 raise ValueError(f"Неверный формат даты. Ожидается: {date_format}")
         else:
             target_datetime = target_date
-        
+
         time_difference = current_datetime - target_datetime
-        
+
         days = time_difference.days
         seconds = time_difference.seconds
         hours = seconds // 3600
         minutes = (seconds % 3600) // 60
         seconds = seconds % 60
-        
+
         return {
             'days': days,
             'hours': hours,

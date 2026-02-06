@@ -3,6 +3,7 @@ from typing import Optional
 
 from seleniumbase import SB
 
+from app.page_handler.data_parser.models import AlbumShortInformation
 from app.page_handler.data_parser.parser import PageParser
 from app.page_handler.models import PageInfo
 
@@ -22,34 +23,28 @@ class MetalArchivesPageHandler:
     def get_band_info(self, url: str) -> PageInfo:
         data = self._get_data(url)
         if data.html is not None:
-            data.data = self._parser_cls.extract_band_info(data=data.html)
-            data.data.discography = self.get_band_discography(data.data.id)
+            band_info = self._parser_cls.extract_band_info(data=data.html)
+            band_info.discography = self._get_band_discography(band_id=band_info.id)
+            data.data = band_info
         return data
-    
+
     def search_band_info(self, url: str) -> PageInfo:
         data = self._get_data(url)
         if data.html is not None:
             data.data = self._parser_cls.extract_search_band_info(data=data.html)
         return data
-    
+
     def search_album_info(self, url: str) -> PageInfo:
         data = self._get_data(url)
         if data.html is not None:
             data.data = self._parser_cls.extract_search_album_info(data=data.html)
         return data
-    
+
     def get_album_info(self, url: str) -> PageInfo:
         data = self._get_data(url)
         if data.html is not None:
             data.data = self._parser_cls.extract_album_info(data=data.html)
         return data
-    
-    def get_band_discography(self, band_id: str) -> PageInfo:
-        url = f'https://www.metal-archives.com/band/discography/id/{band_id}/tab/all'
-        data = self._get_data(url)
-        if data.html is not None:
-            data.data = self._parser_cls.extract_discography_info(data.html)
-        return data.data
 
     def _get_data(
         self,
@@ -60,9 +55,9 @@ class MetalArchivesPageHandler:
         start_time = time.time()
         try:
             self._sb.uc_open_with_tab(url)
-            #self._sb.uc_gui_click_captcha()
-            #self._sb.uc_gui_click_cf()
-            #time.sleep(wait_time)
+            # self._sb.uc_gui_click_captcha()
+            # self._sb.uc_gui_click_cf()
+            # time.sleep(wait_time)
             # Получаем HTML и извлекаем информацию
             return PageInfo(
                 url=url,
@@ -85,3 +80,10 @@ class MetalArchivesPageHandler:
                 processing_time=round(time.time() - start_time, 2),
                 error=error_msg,
             )
+
+    def _get_band_discography(self, band_id: str | int) -> list[AlbumShortInformation]:
+        url = f'https://www.metal-archives.com/band/discography/id/{band_id}/tab/all'
+        data = self._get_data(url=url)
+        if data.html is not None:
+            return self._parser_cls.extract_discography_info(data=data.html)
+        return []
