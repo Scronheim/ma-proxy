@@ -136,6 +136,7 @@ class PageParser:
 
             return album_info
         except (AttributeError, IndexError) as err:
+            print(err)
             album_info.parsing_error = f"Ошибка при разборе HTML: {str(err)}"
             return None
 
@@ -251,7 +252,9 @@ class PageParser:
         band_name = soup.find('h2', class_='band_name')
         album_info.band_name = band_name.text.replace('\n', '').replace('\t', '').strip()
         album_info.band_id = int(band_name.find('a').get('href').split('/').pop())
-        album_info.cover_url = soup.find(id='cover').get('href')
+        cover_url = soup.find(id='cover')
+        if cover_url:
+            album_info.cover_url = cover_url.get('href')
         album_info.url = album_name.find('a').get('href')
         album_info.updated_at = datetime.datetime.now(datetime.timezone.utc)
 
