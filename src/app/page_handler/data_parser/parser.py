@@ -108,6 +108,11 @@ class PageParser:
         return cls._get_discography(soup)
 
     @classmethod
+    def extract_lyrics_info(cls, data: str) -> AlbumInformation:
+        soup = BeautifulSoup(data, 'html.parser')
+        return soup.find('body').text.strip()
+    
+    @classmethod
     def extract_album_info(cls, data: str) -> AlbumInformation:
         soup = BeautifulSoup(data, 'html.parser')
         album_info = {}
@@ -142,34 +147,21 @@ class PageParser:
 
     @staticmethod
     def _parse_tracklist(cls, soup: BeautifulSoup) -> list[Track]:
-        """
-        Парсит HTML-таблицу с треклистом и возвращает структурированные данные.
-        
-        Args:
-            html_content: HTML строка содержащая таблицу с треклистом
-            
-        Returns:
-            Список словарей с ключами: number, title, duration, cdNumber, side
-        """
         tracklist = []
 
-        # Находим таблицу с треклистом
         table = soup.find('table', {'class': 'display table_lyrics'})
         if not table:
             return []
 
-        # Извлекаем все строки таблицы
         rows = table.find_all('tr')
         if not rows:
             return []
 
-        # Инициализируем переменные для отслеживания текущей стороны и CD
         current_side = None
         cd_number = None
         track_counter = 0
 
         for row in rows:
-            # Проверяем, является ли строка заголовком стороны (Side A/B)
             side_cell = row.find('td', {'colspan': '4'})
             if side_cell and 'side' in side_cell.get_text(strip=True, separator=' ').lower():
                 side_text = side_cell.get_text(strip=True)
@@ -177,20 +169,13 @@ class PageParser:
                 if 'side' in side_text.lower():
                     current_side = side_text.split()[-1].strip()
 
-            # Пропускаем строки, которые не являются треками (суммарное время, технические строки)
             elif row.has_attr('class'):
                 row_classes = row.get('class', [])
 
-                # Пропускаем скрытые строки с текстами песен
-                if 'displayNone' in row_classes:
-                    continue
-
-                # Пропускаем строку с общим временем
                 if 'sideRow' in row_classes or row.find('strong'):
                     continue
 
-                # Обрабатываем строки с треками (содержащие even/odd классы)
-                if 'even' in row_classes or 'odd' in row_classes:
+                if 'even' in row_classes or 'odd' in row_classes or 'displayNone' in row_classes:
                     track_data = cls._extract_track_data(row, current_side, cd_number)
                     if track_data:
                         tracklist.append(track_data)
@@ -200,46 +185,39 @@ class PageParser:
 
     @staticmethod
     def _extract_track_data(row: Tag, current_side: Optional[str], cd_number: int) -> Optional[Dict[str, str]]:
-        """
-        Извлекает данные о конкретном треке из строки таблицы.
-        
-        Args:
-            row: BeautifulSoup Tag объекта строки таблицы
-            current_side: Текущая сторона (A/B)
-            cd_number: Номер CD
-            
-        Returns:
-            Словарь с данными трека или None если данные некорректны
-        """
         try:
-            # Извлекаем все ячейки строки
             cells = row.find_all('td')
+            id = None
+            
             if len(cells) < 3:
                 return None
 
-            # Извлекаем номер трека (удаляем точку в конце)
             track_number_cell = cells[0]
             track_number = track_number_cell.get_text(strip=True).rstrip('.')
 
-            # Извлекаем название трека
             title_cell = cells[1]
             title = title_cell.get_text(strip=True)
 
-            # Извлекаем длительность
             duration_cell = cells[2]
             duration = duration_cell.get_text(strip=True)
 
-            # Формируем результат
+            if cells[3]:
+                id_link = cells[3].find('a')
+                if id_link:
+                    id = int(re.sub(r'\D', '', id_link.get('href').split('#')[1]))
+                elif cells[3].find('em'):
+                    id = cells[3].find('em').get_text(strip=True)
             return Track(
+                id=id,
                 title=title,
                 number=int(track_number),
                 duration=duration,
+                lyrics=None,
                 cdNumber=cd_number,
                 side=current_side if current_side else None
             )
 
         except (AttributeError, IndexError, ValueError) as e:
-            # Логирование ошибки (в production можно использовать logging)
             print(f"Ошибка при парсинге строки трека: {e}")
             return None
 

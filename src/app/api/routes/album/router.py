@@ -29,7 +29,7 @@ class AlbumRouter(APIRouter):
         )
         self.db = db
 
-    async def parse_album(self, album_id: int) -> AlbumInfoResponse:
+    async def parse_album(self, album_id: str) -> AlbumInfoResponse:
         info = self.page_handler.get_album_info(
             url='https://www.metal-archives.com/albums/view/id/{album_id}'.format(album_id=album_id)
         )
@@ -57,9 +57,11 @@ class AlbumRouter(APIRouter):
             label=result['label'],
             tracklist=[
                 Track(
+                    id=track.get('id'),
                     title=track['title'],
                     number=track['number'],
                     duration=track['duration'],
+                    lyrics=track.get('lyrics'),
                     cdNumber=track['cdNumber'],
                     side=track['side'],
                 )

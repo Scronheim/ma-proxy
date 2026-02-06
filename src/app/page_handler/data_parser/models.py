@@ -31,9 +31,11 @@ class StatusAndDateInfo:
 
 @dataclass
 class Track:
+    id: int | None = None
     number: int | None = None
     title: str | None = None
     duration: str | None = None
+    lyrics: str | None = None
     cdNumber: int | None = None
     side: str | None = None
 
