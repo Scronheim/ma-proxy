@@ -1,6 +1,6 @@
 import re
 import json
-from datetime import datetime
+import datetime
 from bs4 import BeautifulSoup, Tag
 from typing import Dict, List, Optional
 
@@ -95,6 +95,7 @@ class PageParser:
             band_info.current_lineup = cls._get_current_lineup(soup)
             band_info.photo_url = cls._get_photo_url(soup)
             band_info.logo_url = cls._get_logo_url(soup)
+            band_info.updated_at = datetime.datetime.now(datetime.timezone.utc)
         except Exception as err:
             band_info.parsing_error = f"Ошибка при разборе HTML: {str(err)}"
 
@@ -245,6 +246,7 @@ class PageParser:
         album_info.band_id = int(band_name.find('a').get('href').split('/').pop())
         album_info.cover_url = soup.find(id='cover').get('href')
         album_info.url = album_name.find('a').get('href')
+        album_info.updated_at = datetime.datetime.now(datetime.timezone.utc)
     
         dt_elements = soup.find_all('dt')
         for dt in dt_elements:
@@ -343,7 +345,7 @@ class PageParser:
                 album.id = int(album.url.split('/').pop())
 
                 result.append(album)
-        sorted_strings = sorted(result, key=lambda x: datetime.strptime(x.release_date, '%Y'), reverse=True)
+        sorted_strings = sorted(result, key=lambda x: datetime.datetime.strptime(x.release_date, '%Y'), reverse=True)
 
         return sorted_strings
 

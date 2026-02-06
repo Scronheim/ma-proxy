@@ -1,9 +1,8 @@
-from fastapi import APIRouter, Query
+from fastapi import APIRouter
 from urllib.parse import quote
-from fastapi.middleware.cors import CORSMiddleware
 
 from datetime import datetime
-from typing import Union, Optional, Dict, Tuple
+from typing import Union, Dict
 from bson.json_util import dumps
 import dataclasses
 import json
@@ -59,29 +58,14 @@ class BandRouter(APIRouter):
         info = {}
         url = 'https://www.metal-archives.com/band/view/id/{band_id}'.format(band_id=band_id)
         if band:
-            diff = self._get_date_difference(band['updated_at']['$date'])
+            diff = self._get_date_difference(band.updated_at)
             if diff['days'] > 15:
                 band = self.page_handler.get_band_info(url=url).data
                 asyncio.create_task(self._replace_band_in_db(band))
+                
             return BandInfoResponse(
                 success=True,
-                band_info=BandInformation(
-                    id=band['id'],
-                    name=band['name'],
-                    country=band['country'],
-                    city=band['city'],
-                    status=band['status'],
-                    formed_in=band['formed_in'],
-                    years_active=band['years_active'],
-                    genres=band['genres'],
-                    themes=band['themes'],
-                    current_lineup=band['current_lineup'],
-                    discography=band['discography'],
-                    label=band['label'],
-                    photo_url=band['photo_url'],
-                    logo_url=band['logo_url'],
-                    parsing_error=band['parsing_error']
-            ),
+                band_info=band,
                 error='',
                 url='',
                 processing_time=0.0,
@@ -136,29 +120,49 @@ class BandRouter(APIRouter):
         ])
         result = await result.to_list()
         if len(result) > 0:
-            return json.loads(dumps(result[0]))
+            band = json.loads(dumps(result[0]))
+            return BandInformation(
+                    id=band['id'],
+                    name=band['name'],
+                    country=band['country'],
+                    city=band['city'],
+                    status=band['status'],
+                    formed_in=band['formed_in'],
+                    years_active=band['years_active'],
+                    genres=band['genres'],
+                    themes=band['themes'],
+                    current_lineup=band['current_lineup'],
+                    discography=band['discography'],
+                    label=band['label'],
+                    photo_url=band['photo_url'],
+                    logo_url=band['logo_url'],
+                    updated_at=band['updated_at']['$date'],
+                    parsing_error=band['parsing_error']
+            )
         return None
     
     async def _replace_band_in_db(self, band: BandInformation):
         band_dict = dataclasses.asdict(band)
-        band_dict['updated_at'] = datetime.now()
         album_ids = []
         for album in band_dict['discography']:
-            router = AlbumRouter(page_handler=self.page_handler, db=self.db)
-            album_response = await router.parse_album(album_id=album['id'])
-            album_dict = dataclasses.asdict(album_response.album_info)
-            album_dict['updated_at'] = datetime.now()
-            new_album = await self.db.albums.replace_one({'id': album['id']}, album_dict, upsert=True)
-            album_ids.append(new_album.upserted_id)
-
+            album_exist = await self.db.albums.find_one({'id': album['id']})
+            if album_exist:
+                album_ids.append(album_exist.get('_id'))
+            else:
+                router = AlbumRouter(page_handler=self.page_handler, db=self.db)
+                album_response = await router.parse_album(album_id=album['id'])
+                album_dict = dataclasses.asdict(album_response.album_info)
+                try:
+                    new_album = await self.db.albums.insert_one(album_dict)
+                    print(new_album)
+                except Exception as e:
+                    print(e)
+                album_ids.append(new_album.inserted_id)
         band_dict['discography'] = album_ids
         await self.db.bands.replace_one({'id': band.id}, band_dict, upsert=True)
     
     def _get_date_difference(self, target_date: Union[str, datetime], date_format: str = "%Y-%m-%dT%H:%M:%S.%fZ") -> Dict[str, int]:
-        # Получаем текущую дату и время 2026-02-04T23:25:54.239Z
         current_datetime = datetime.now()
-        
-        # Конвертируем target_date в datetime если это строка
         if isinstance(target_date, str):
             try:
                 target_datetime = datetime.strptime(target_date, date_format)
@@ -167,10 +171,8 @@ class BandRouter(APIRouter):
         else:
             target_datetime = target_date
         
-        # Вычисляем разницу
         time_difference = current_datetime - target_datetime
         
-        # Извлекаем компоненты разницы
         days = time_difference.days
         seconds = time_difference.seconds
         hours = seconds // 3600

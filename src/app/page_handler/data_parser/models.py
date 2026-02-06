@@ -1,4 +1,7 @@
 from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Optional
+from bson import ObjectId
 
 @dataclass
 class BandLocationInfo:
@@ -46,6 +49,7 @@ class AlbumInformation:
     label: str | None = None
     tracklist: list[Track] | None = None
     cover_url: str | None = None
+    updated_at: datetime | str | None = None
     parsing_error: str | None = None
     url: str | None = None
 
@@ -74,6 +78,7 @@ class BandInformation:
     discography: list[AlbumInformation | AlbumShortInformation] = field(default_factory=list)
     photo_url: str | None = None
     logo_url: str | None = None
+    updated_at: datetime | str | None = None
     parsing_error: str | None = None
 
 @dataclass

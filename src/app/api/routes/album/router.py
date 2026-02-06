@@ -1,6 +1,8 @@
 from fastapi import APIRouter
 from urllib.parse import quote
+from bson.json_util import dumps
 import time
+import json
 
 from app.page_handler.handler import MetalArchivesPageHandler
 from .models import AlbumInfoResponse, SearchResponse
@@ -39,6 +41,8 @@ class AlbumRouter(APIRouter):
     async def get_album_by_id(self, album_id: str) -> AlbumInfoResponse:
         start_time = time.time()
         album = await self.db.albums.find_one({'id': int(album_id)})
+        album = json.loads(dumps(album))
+        album['updated_at'] = album['updated_at']['$date']
         if not album:
             return await self.parse_album(int(album_id))
         return AlbumInfoResponse(
