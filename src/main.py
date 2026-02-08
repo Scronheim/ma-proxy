@@ -1,7 +1,5 @@
 import uvicorn
-from pymongo import AsyncMongoClient
 from seleniumbase import SB
-
 
 from app.api.application import MetalParserAPI
 from app.page_handler.handler import MetalArchivesPageHandler
@@ -17,4 +15,3 @@ if __name__ == "__main__":
         page_handler = MetalArchivesPageHandler(sb=sb)
         app = MetalParserAPI(page_handler=page_handler)
         uvicorn.run(app, host="0.0.0.0", port=8000)
-        # uvicorn.run(app, host="127.0.0.1", port=8000)

@@ -8,7 +8,12 @@ from pymongo import AsyncMongoClient
 
 from app.page_handler.data_parser.models import AlbumInformation, AlbumShortInformation, BandInformation, MemberLineUp
 from app.page_handler.handler import MetalArchivesPageHandler
-from .models import BandInfoResponse, SearchResponse
+from app.sse.manager import sse_manager
+
+from .models import BandInfoResponse, SearchResponse, BandLinksResponse
+
+from app.messages import get_start_random_message, get_new_album_message,\
+                         get_album_number_message, get_band_links_message
 
 
 class BandRouter(APIRouter):
@@ -36,9 +41,28 @@ class BandRouter(APIRouter):
             tags=['Parsing'],
             methods=["GET", ]
         )
+        self.add_api_route(
+            path='/{band_id}/links',
+            endpoint=self.parse_band_links,
+            response_model=BandLinksResponse,
+            tags=['Parsing'],
+            methods=["GET", ]
+        )
         self.db = db
 
+    async def parse_band_links(self, band_id: str) -> BandLinksResponse:
+        await sse_manager.send_message(get_band_links_message())
+        info = self.page_handler._get_band_links(url=f'https://www.metal-archives.com/link/ajax-list/type/band/id/{band_id}')
+        return BandLinksResponse(
+            success=True if info.error is None else False,
+            band_links=info.data,
+            error=info.error,
+            url=info.url,
+            processing_time=info.processing_time
+        )
+    
     async def parse_random(self, background_tasks: BackgroundTasks) -> BandInfoResponse:
+        await sse_manager.send_message(get_start_random_message())
         info = self.page_handler.get_band_info(url='https://www.metal-archives.com/band/random')
         background_tasks.add_task(self._replace_band_in_db, band=info.data)
         return BandInfoResponse(
@@ -144,6 +168,7 @@ class BandRouter(APIRouter):
                 )
                 for disc in band['discography']
             ],
+            links=band.get('links', []),
             label=band['label'],
             photo_url=band['photo_url'],
             logo_url=band['logo_url'],
@@ -162,10 +187,13 @@ class BandRouter(APIRouter):
             album_page_info = self.page_handler.get_album_info(
                 url=f'https://www.metal-archives.com/albums/view/id/{album.id}'
             )
-            new_album = await self.db.albums.insert_one(dataclasses.asdict(album_page_info.data))
+            album_dict = dataclasses.asdict(album_page_info.data)
+            new_album = await self.db.albums.insert_one(album_dict)
+            await sse_manager.send_message(get_new_album_message(album_page_info.data))
             album_record_ids.append(new_album.inserted_id)
 
         band.discography = album_record_ids
+        await sse_manager.send_message(get_album_number_message(len(album_record_ids)))
         await self.db.bands.replace_one({'id': band.id}, dataclasses.asdict(band), upsert=True)
 
     @staticmethod

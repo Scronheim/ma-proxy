@@ -15,6 +15,9 @@ from app.page_handler.data_parser.models import (
     MemberLineUp,
     StatusAndDateInfo,
     Track,
+    StatInfo,
+    BandStatInfo,
+    BandLink
 )
 
 
@@ -108,9 +111,40 @@ class PageParser:
         return cls._get_discography(soup)
 
     @classmethod
-    def extract_lyrics_info(cls, data: str) -> AlbumInformation:
+    def extract_lyrics_info(cls, data: str) -> str:
         soup = BeautifulSoup(data, 'html.parser')
         return soup.find('body').text.strip()
+   
+    @classmethod
+    def extract_band_links(cls, data: str) -> list[BandLink]:
+        soup = BeautifulSoup(data, 'html.parser')
+        all_links = soup.find_all('a', target='_blank')
+        band_links = []
+        for link in all_links:
+            social = link.text.strip()
+            url = link.get('href')
+            band_links.append(BandLink(social=social, url=url))
+        return band_links
+    
+    @classmethod
+    def extract_stats_info(cls, data: str) -> StatInfo:
+        soup = BeautifulSoup(data, 'html.parser')
+        active = int(soup.find('span', class_='active').text.strip())
+        on_hold = int(soup.find('span', class_='on_hold').text.strip())
+        split_up = int(soup.find('span', class_='split_up').text.strip())
+        changed_name = int(soup.find('span', class_='changed_name').text.strip())
+        unknown = int(soup.find('span', class_='unknown').text.strip())
+        total = active + on_hold + split_up + changed_name + unknown
+        bands_stat = BandStatInfo(
+            active=active, on_hold=on_hold,
+            split_up=split_up, changed_name=changed_name,
+            unknown=unknown, total=total
+        )
+        strong_tags = soup.select('p > strong')
+        albums = int(strong_tags[-2].text)
+        songs = int(strong_tags[-1].text)
+
+        return StatInfo(bands=bands_stat, albums=albums, songs=songs)
     
     @classmethod
     def extract_album_info(cls, data: str) -> AlbumInformation:
@@ -332,11 +366,12 @@ class PageParser:
                 url = album_link.get('href', '')
                 result.append(
                     AlbumShortInformation(
+                        id=int(url.split('/').pop()),
                         title=album_link.text.strip(),
                         type=cols[1].text.strip(),
                         release_date=cols[2].text.strip(),
-                        url=url,
-                        id=int(url.split('/').pop())
+                        cover_loading=True,
+                        url=url
                     )
                 )
         sorted_strings = sorted(

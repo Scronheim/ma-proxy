@@ -18,11 +18,11 @@ class LyricsRouter(APIRouter):
         )
         self.db = db
 
-    async def parse_lyrics(self, background_tasks: BackgroundTasks, lyrics_id: str, album_id: str = '',) -> LyricsInfoResponse:
+    async def parse_lyrics(self, background_tasks: BackgroundTasks, id: str, album_id: str = '',) -> LyricsInfoResponse:
         info = self.page_handler.get_lyrics(
-            url=f'https://www.metal-archives.com/release/ajax-view-lyrics/id/{lyrics_id}'
+            url=f'https://www.metal-archives.com/release/ajax-view-lyrics/id/{id}'
         )
-        background_tasks.add_task(self.update_lyrics, lyrics_id=lyrics_id, album_id=album_id, text=info.data)
+        background_tasks.add_task(self.update_lyrics, lyrics_id=id, album_id=album_id, text=info.data)
         return LyricsInfoResponse(
             success=True if info.error is None else False,
             lyrics=info.data,

@@ -6,6 +6,7 @@ from pymongo import AsyncMongoClient
 
 from app.page_handler.data_parser.models import AlbumInformation, Track
 from app.page_handler.handler import MetalArchivesPageHandler
+
 from .models import AlbumInfoResponse, SearchResponse
 
 

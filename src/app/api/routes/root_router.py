@@ -5,6 +5,8 @@ from app.page_handler.handler import MetalArchivesPageHandler
 from .band import BandRouter
 from .album import AlbumRouter
 from .lyrics import LyricsRouter
+from .events import EventsRouter
+from .stats import StatsRouter
 
 
 class RootRouter(APIRouter):
@@ -15,7 +17,11 @@ class RootRouter(APIRouter):
         band_router = BandRouter(page_handler=page_handler, db=db)
         album_router = AlbumRouter(page_handler=page_handler, db=db)
         lyrics_router = LyricsRouter(page_handler=page_handler, db=db)
+        events_router = EventsRouter(page_handler=page_handler, db=db)
+        stats_router = StatsRouter(page_handler=page_handler, db=db)
         
         self.include_router(router=band_router)
         self.include_router(router=album_router)
         self.include_router(router=lyrics_router)
+        self.include_router(router=events_router)
+        self.include_router(router=stats_router)

@@ -25,6 +25,8 @@ class MetalArchivesPageHandler:
         if data.html is not None:
             band_info = self._parser_cls.extract_band_info(data=data.html)
             band_info.discography = self._get_band_discography(band_id=band_info.id)
+            band_info.links = self._get_band_links(f'https://www.metal-archives.com/link/ajax-list/type/band/id/{band_info.id}').data
+            print(band_info.links)
             data.data = band_info
         return data
 
@@ -50,6 +52,18 @@ class MetalArchivesPageHandler:
         data = self._get_data(url)
         if data.html is not None:
             data.data = self._parser_cls.extract_lyrics_info(data=data.html)
+        return data
+    
+    def get_stats(self, url: str) -> PageInfo:
+        data = self._get_data(url)
+        if data.html is not None:
+            data.data = self._parser_cls.extract_stats_info(data=data.html)
+        return data
+    
+    def _get_band_links(self, url: str) -> PageInfo:
+        data = self._get_data(url)
+        if data.html is not None:
+            data.data = self._parser_cls.extract_band_links(data=data.html)
         return data
 
     def _get_data(
