@@ -24,7 +24,7 @@ def get_band_links_message():
 def get_new_album_message(album: AlbumInformation) -> SSE_response:
   return {
     'type': 'new_album',
-    'message': f'Добавлен новый альбом {album.band_name} - {album.title} ({album.release_date})',
+    'message': f'Добавлен новый альбом {album.band_names} - {album.title} ({album.release_date})',
     'data': {
       'id': album.id,
       'cover_url': album.cover_url

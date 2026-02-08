@@ -2,6 +2,11 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 @dataclass
+class RandomBandInfo:
+    id: int | None = None
+    band_name: str | None = None
+
+@dataclass
 class BandStatInfo:
     active: int = 0
     on_hold: int = 0
@@ -60,8 +65,8 @@ class Track:
 class AlbumInformation:
     id: int | None = None
     title: str | None = None
-    band_name: str | None = None
-    band_id: int | None = None
+    band_names: list[str] | None = field(default_factory=list)
+    band_ids: list[int] | None = field(default_factory=list)
     type: str | None = None
     release_date: str | None = None
     label: str | None = None

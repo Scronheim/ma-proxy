@@ -26,7 +26,6 @@ class MetalArchivesPageHandler:
             band_info = self._parser_cls.extract_band_info(data=data.html)
             band_info.discography = self._get_band_discography(band_id=band_info.id)
             band_info.links = self._get_band_links(f'https://www.metal-archives.com/link/ajax-list/type/band/id/{band_info.id}').data
-            print(band_info.links)
             data.data = band_info
         return data
 

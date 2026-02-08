@@ -25,7 +25,7 @@ class StatsRouter(APIRouter):
         stats = AllStatInfo(local=local, ma=info.data)
         return StatsInfoResponse(
             success=True if info.error is None else False,
-            stats=stats,
+            data=stats,
             error=info.error,
             url=info.url,
             processing_time=info.processing_time,

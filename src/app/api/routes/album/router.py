@@ -36,7 +36,7 @@ class AlbumRouter(APIRouter):
         )
         return AlbumInfoResponse(
             success=True if info.error is None else False,
-            album_info=info.data,
+            data=info.data,
             error=info.error,
             url=info.url,
             processing_time=info.processing_time,
@@ -51,8 +51,8 @@ class AlbumRouter(APIRouter):
         album_obj = AlbumInformation(
             id=result['id'],
             title=result['title'],
-            band_name=result['band_name'],
-            band_id=result['band_id'],
+            band_names=result['band_names'],
+            band_ids=result['band_ids'],
             type=result['type'],
             release_date=result['release_date'],
             label=result['label'],
@@ -75,7 +75,7 @@ class AlbumRouter(APIRouter):
         )
         return AlbumInfoResponse(
             success=True,
-            album_info=album_obj,
+            data=album_obj,
             error=None,
             url=f'/api/album/{album_id}',
             processing_time=round(time.time() - start_time, 2),
@@ -90,7 +90,7 @@ class AlbumRouter(APIRouter):
         info = self.page_handler.search_album_info(search_url)
         return SearchResponse(
             success=info.error is None,
-            results=info.data,
+            data=info.data,
             error=info.error,
             url=info.url,
             processing_time=info.processing_time,

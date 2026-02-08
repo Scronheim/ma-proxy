@@ -17,7 +17,8 @@ from app.page_handler.data_parser.models import (
     Track,
     StatInfo,
     BandStatInfo,
-    BandLink
+    BandLink,
+    RandomBandInfo
 )
 
 
@@ -149,7 +150,7 @@ class PageParser:
     @classmethod
     def extract_album_info(cls, data: str) -> AlbumInformation:
         soup = BeautifulSoup(data, 'html.parser')
-        album_info = {}
+        album_info = AlbumInformation()
         try:
             album_info = cls._get_album_info(cls, soup)
         except Exception as err:
@@ -175,7 +176,7 @@ class PageParser:
 
             return album_info
         except (AttributeError, IndexError) as err:
-            print(err)
+            # print(err)
             album_info.parsing_error = f"Ошибка при разборе HTML: {str(err)}"
             return None
 
@@ -261,12 +262,13 @@ class PageParser:
         album_name = soup.find('h1', class_='album_name')
         album_info.id = int(album_name.find('a').get('href').split('/').pop())
         album_info.title = album_name.text.strip()
-        band_name = soup.find('h2', class_='band_name')
-        album_info.band_name = band_name.text.replace('\n', '').replace('\t', '').strip()
-        album_info.band_id = int(band_name.find('a').get('href').split('/').pop())
+        band_names = soup.find('h2', class_='band_name').find_all('a')
+        for band_link in band_names:
+            album_info.band_names.append(band_link.text.strip())
+            album_info.band_ids.append(int(band_link.get('href').split('/').pop()))
         cover_url = soup.find(id='cover')
         if cover_url:
-            album_info.cover_url = cover_url.get('href')
+            album_info.cover_url = cover_url.get('href').split('https://www.metal-archives.com')[1]
         album_info.url = album_name.find('a').get('href')
         album_info.updated_at = datetime.datetime.now(datetime.timezone.utc)
 
@@ -385,12 +387,12 @@ class PageParser:
     def _get_photo_url(soup: BeautifulSoup) -> str | None:
         photo = soup.find('a', id='photo')
         if photo:
-            return photo.get('href')
+            return photo.get('href').split('https://www.metal-archives.com')[1]
         return None
 
     @staticmethod
     def _get_logo_url(soup: BeautifulSoup) -> str | None:
         logo = soup.find('a', id='logo')
         if logo:
-            return logo.get('href')
+            return logo.get('href').split('https://www.metal-archives.com')[1]
         return None

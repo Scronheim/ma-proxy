@@ -25,7 +25,7 @@ class LyricsRouter(APIRouter):
         background_tasks.add_task(self.update_lyrics, lyrics_id=id, album_id=album_id, text=info.data)
         return LyricsInfoResponse(
             success=True if info.error is None else False,
-            lyrics=info.data,
+            data=info.data,
             error=info.error,
             url=info.url,
             processing_time=info.processing_time,

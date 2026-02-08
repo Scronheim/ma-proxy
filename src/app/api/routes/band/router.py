@@ -10,7 +10,7 @@ from app.page_handler.data_parser.models import AlbumInformation, AlbumShortInfo
 from app.page_handler.handler import MetalArchivesPageHandler
 from app.sse.manager import sse_manager
 
-from .models import BandInfoResponse, SearchResponse, BandLinksResponse
+from .models import BandInfoResponse, SearchResponse, BandLinksResponse, BandLink
 
 from app.messages import get_start_random_message, get_new_album_message,\
                          get_album_number_message, get_band_links_message
@@ -55,7 +55,7 @@ class BandRouter(APIRouter):
         info = self.page_handler._get_band_links(url=f'https://www.metal-archives.com/link/ajax-list/type/band/id/{band_id}')
         return BandLinksResponse(
             success=True if info.error is None else False,
-            band_links=info.data,
+            data=info.data,
             error=info.error,
             url=info.url,
             processing_time=info.processing_time
@@ -64,10 +64,13 @@ class BandRouter(APIRouter):
     async def parse_random(self, background_tasks: BackgroundTasks) -> BandInfoResponse:
         await sse_manager.send_message(get_start_random_message())
         info = self.page_handler.get_band_info(url='https://www.metal-archives.com/band/random')
+        band = await self._check_band_in_db(int(info.data.id))
+        if not band:
+            await self._add_band_in_db(info.data)
         background_tasks.add_task(self._replace_band_in_db, band=info.data)
         return BandInfoResponse(
             success=True if info.error is None else False,
-            band_info=info.data,
+            data=info.data,
             error=info.error,
             url=info.url,
             processing_time=info.processing_time,
@@ -84,16 +87,17 @@ class BandRouter(APIRouter):
 
             return BandInfoResponse(
                 success=True,
-                band_info=band,
+                data=band,
                 url=url,
                 processing_time=0.0,
             )
-
+        
         info = self.page_handler.get_band_info(url=url)
+        await self._add_band_in_db(info.data)
         background_tasks.add_task(self._replace_band_in_db, band=info.data)
         return BandInfoResponse(
             success=True if info.error is None else False,
-            band_info=info.data,
+            data=info.data,
             error=info.error,
             url=info.url,
             processing_time=info.processing_time,
@@ -109,7 +113,7 @@ class BandRouter(APIRouter):
 
         return SearchResponse(
             success=True if info.error is None else False,
-            results=info.data,
+            data=info.data,
             error=info.error,
             url=info.url,
             processing_time=info.processing_time,
@@ -140,7 +144,7 @@ class BandRouter(APIRouter):
         )
         result = await result.to_list()
         if not result:
-            return
+            return None
 
         band = result[0]
         return BandInformation(
@@ -168,14 +172,21 @@ class BandRouter(APIRouter):
                 )
                 for disc in band['discography']
             ],
-            links=band.get('links', []),
+            links=[
+                BandLink(social=link['social'], url=link['url'])
+                for link in band['links']
+            ],
             label=band['label'],
             photo_url=band['photo_url'],
             logo_url=band['logo_url'],
             updated_at=band['updated_at'],
             parsing_error=band['parsing_error']
         )
-
+    
+    async def _add_band_in_db(self, band: BandInformation):
+        band_dict = dataclasses.asdict(band)
+        await self.db.bands.insert_one(band_dict)
+    
     async def _replace_band_in_db(self, band: BandInformation):
         album_record_ids = []
         for album in band.discography:
@@ -187,8 +198,7 @@ class BandRouter(APIRouter):
             album_page_info = self.page_handler.get_album_info(
                 url=f'https://www.metal-archives.com/albums/view/id/{album.id}'
             )
-            album_dict = dataclasses.asdict(album_page_info.data)
-            new_album = await self.db.albums.insert_one(album_dict)
+            new_album = await self.db.albums.insert_one(dataclasses.asdict(album_page_info.data))
             await sse_manager.send_message(get_new_album_message(album_page_info.data))
             album_record_ids.append(new_album.inserted_id)
 

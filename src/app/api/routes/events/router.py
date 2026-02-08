@@ -3,7 +3,6 @@ from pymongo import AsyncMongoClient
 
 from app.page_handler.handler import MetalArchivesPageHandler
 from app.sse.manager import sse_manager
-from .models import LyricsInfoResponse
 
 
 class EventsRouter(APIRouter):
@@ -13,7 +12,6 @@ class EventsRouter(APIRouter):
         self.add_api_route(
             path='/',
             endpoint=self.add_connection,
-            response_model=LyricsInfoResponse,
             tags=['Parsing'],
             methods=["GET", ]
         )
