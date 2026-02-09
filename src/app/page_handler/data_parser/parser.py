@@ -117,6 +117,11 @@ class PageParser:
         return soup.find('body').text.strip()
    
     @classmethod
+    def extract_band_description(cls, data: str) -> list[BandLink]:
+        soup = BeautifulSoup(data, 'html.parser')
+        return soup.find('body').decode_contents()
+    
+    @classmethod
     def extract_band_links(cls, data: str) -> list[BandLink]:
         soup = BeautifulSoup(data, 'html.parser')
         all_links = soup.find_all('a', target='_blank')
@@ -231,7 +236,7 @@ class PageParser:
             track_number = track_number_cell.get_text(strip=True).rstrip('.')
 
             title_cell = cells[1]
-            title = title_cell.get_text(strip=True)
+            title = title_cell.get_text(strip=True).replace('\n', '').replace('\t', '')
 
             duration_cell = cells[2]
             duration = duration_cell.get_text(strip=True)

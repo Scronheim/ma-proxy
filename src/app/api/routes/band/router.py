@@ -2,6 +2,8 @@ import dataclasses
 from datetime import datetime
 from typing import Dict, Union
 from urllib.parse import quote
+from bson import json_util
+import json
 
 from fastapi import APIRouter, BackgroundTasks
 from pymongo import AsyncMongoClient
@@ -150,6 +152,7 @@ class BandRouter(APIRouter):
         return BandInformation(
             id=band['id'],
             name=band['name'],
+            description=band['description'],
             country=band['country'],
             city=band['city'],
             status=band['status'],
@@ -193,6 +196,9 @@ class BandRouter(APIRouter):
             album_exist = await self.db.albums.find_one({'id': album.id})
             if album_exist:
                 album_record_ids.append(album_exist.get('_id'))
+                album_exist.pop('_id')
+                album_model = AlbumInformation(**album_exist)
+                await sse_manager.send_message(get_new_album_message(album_model))
                 continue
 
             album_page_info = self.page_handler.get_album_info(

@@ -96,6 +96,7 @@ class BandLink:
 class BandInformation:
     id: int | None = None
     name: str | None = None
+    description: str | None = None
     country: str | None = None
     city: str | None = None
     status: str | None = None

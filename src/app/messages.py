@@ -27,7 +27,8 @@ def get_new_album_message(album: AlbumInformation) -> SSE_response:
     'message': f'Добавлен новый альбом {album.band_names} - {album.title} ({album.release_date})',
     'data': {
       'id': album.id,
-      'cover_url': album.cover_url
+      'release_date': album.release_date,
+      'cover_url': album.cover_url,
     }
   }
 
