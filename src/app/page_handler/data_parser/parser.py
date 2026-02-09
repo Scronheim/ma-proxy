@@ -291,7 +291,7 @@ class PageParser:
         return album_info
 
     @staticmethod
-    def _get_band_common_info(soup: BeautifulSoup) -> (BandLocationInfo, StatusAndDateInfo, str, str):
+    def _get_band_common_info(soup: BeautifulSoup) -> tuple[BandLocationInfo, StatusAndDateInfo, str, str]:
         location = BandLocationInfo()
         status_and_dates = StatusAndDateInfo()
         label = ''

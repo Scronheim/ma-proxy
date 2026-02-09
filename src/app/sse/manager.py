@@ -38,7 +38,7 @@ class SSEManager:
                 # Всегда очищаем соединение при завершении
                 await self.remove_connection(queue, channel)
         
-        return EventSourceResponse(event_generator(), ping=600)
+        return EventSourceResponse(event_generator())
     
     async def remove_connection(self, queue: asyncio.Queue, channel: str):
         """Удаление соединения"""
