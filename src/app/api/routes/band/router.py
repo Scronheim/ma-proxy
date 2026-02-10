@@ -83,7 +83,7 @@ class BandRouter(APIRouter):
         url = 'https://www.metal-archives.com/band/view/id/{band_id}'.format(band_id=band_id)
         if band:
             diff = self._get_date_difference(target_date=band.updated_at)
-            if diff['days'] > 15:
+            if (band.status == 'Active' or band.status == 'On Hold' or band.status == 'Unknown') and diff['days'] > 15:
                 page_info = self.page_handler.get_band_info(url=url)
                 background_tasks.add_task(self._replace_band_in_db, band=page_info.data)
 
