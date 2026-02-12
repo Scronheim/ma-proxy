@@ -65,7 +65,9 @@ class Track:
 class AlbumInformation:
     id: int | None = None
     title: str | None = None
+    title_slug: str | None = None
     band_names: list[str] | None = field(default_factory=list)
+    band_names_slug: list[str] | None = field(default_factory=list)
     band_ids: list[int] | None = field(default_factory=list)
     type: str | None = None
     release_date: str | None = None
@@ -80,6 +82,7 @@ class AlbumInformation:
 class AlbumShortInformation:
     id: int | None = None
     title: str | None = None
+    title_slug: str | None = None
     type: str | None = None
     release_date: str | None = None
     cover_url: str | None = None
@@ -96,6 +99,7 @@ class BandLink:
 class BandInformation:
     id: int | None = None
     name: str | None = None
+    name_slug: str | None = None
     description: str | None = None
     country: str | None = None
     city: str | None = None
@@ -117,15 +121,18 @@ class BandInformation:
 class BandSearch:
     id: int | None = None
     name: str | None = None
+    name_slug: str | None = None
     genre: str | None = None
     country: str | None = None
 
 @dataclass
 class AlbumSearch:
     id: int | None = None
+    title: str | None = None
+    title_slug: str | None = None
     band_id: int | None = None
     band_name: str | None = None
-    title: str | None = None
+    band_name_slug: str | None = None
     type: str | None = None
     release_date: str | None = None
 

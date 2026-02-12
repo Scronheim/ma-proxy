@@ -20,6 +20,7 @@ from app.page_handler.data_parser.models import (
     BandLink,
     RandomBandInfo
 )
+from app.utils.utils import clean_string
 
 
 class PageParser:
@@ -34,6 +35,7 @@ class PageParser:
             band_soup = BeautifulSoup(album[0], 'html.parser').find('a')
             band_id = band_soup.get('href').split('/').pop()
             band_name = band_soup.text.strip()
+            band_name_slug = clean_string(band_soup.text.strip())
             album_soup = BeautifulSoup(album[1], 'html.parser').find('a')
             album_id = album_soup.get('href').split('/').pop()
             album_name = album_soup.text.strip()
@@ -43,9 +45,11 @@ class PageParser:
             albums.append(
                 AlbumSearch(
                     id=int(album_id),
-                    band_name=band_name,
-                    band_id=int(band_id),
                     title=album_name,
+                    title_slug=clean_string(album_name),
+                    band_name=band_name,
+                    band_name_slug=band_name_slug,
+                    band_id=int(band_id),
                     type=album_type,
                     release_date=album_release_date,
                 )
@@ -71,6 +75,7 @@ class PageParser:
                 BandSearch(
                     id=int(band_id),
                     name=name,
+                    name_slug=clean_string(name),
                     genre=genre,
                     country=country,
                 )
@@ -83,9 +88,10 @@ class PageParser:
         soup = BeautifulSoup(data, 'html.parser')
         band_info = BandInformation()
         try:
-            band_name, band_id = cls._get_band_name_and_id(soup)
+            band_name, band_name_slug, band_id = cls._get_band_name_and_id(soup)
             band_info.id = band_id
             band_info.name = band_name
+            band_info.name_slug = band_name_slug
 
             location, status_and_dates, label, themes = cls._get_band_common_info(soup)
             band_info.country = location.country
@@ -169,7 +175,7 @@ class PageParser:
         if not band_name_elem:
             band_name_elem = soup.find('h2', class_='band_name')
         band_id = band_name_elem.find('a').get('href').split('/').pop()
-        return band_name_elem.text.strip(), int(band_id)
+        return band_name_elem.text.strip(), clean_string(band_name_elem.text.strip()), int(band_id)
 
     @staticmethod
     def _get_album_info(cls, soup: BeautifulSoup) -> AlbumInformation:
@@ -205,7 +211,7 @@ class PageParser:
             side_cell = row.find('td', {'colspan': '4'})
             if side_cell and 'side' in side_cell.get_text(strip=True, separator=' ').lower():
                 side_text = side_cell.get_text(strip=True)
-                # Извлекаем сторону (A, B, C, D и т.д.)
+                
                 if 'side' in side_text.lower():
                     current_side = side_text.split()[-1].strip()
 
@@ -270,6 +276,7 @@ class PageParser:
         band_names = soup.find('h2', class_='band_name').find_all('a')
         for band_link in band_names:
             album_info.band_names.append(band_link.text.strip())
+            album_info.band_names_slug.append(clean_string(band_link.text.strip()))
             album_info.band_ids.append(int(band_link.get('href').split('/').pop()))
         cover_url = soup.find(id='cover')
         if cover_url:
@@ -375,6 +382,7 @@ class PageParser:
                     AlbumShortInformation(
                         id=int(url.split('/').pop()),
                         title=album_link.text.strip(),
+                        title_slug=clean_string(album_link.text.strip()),
                         type=cols[1].text.strip(),
                         release_date=cols[2].text.strip(),
                         cover_loading=True,

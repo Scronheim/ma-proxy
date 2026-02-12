@@ -16,6 +16,7 @@ from .models import BandInfoResponse, SearchResponse, BandLinksResponse, BandLin
 
 from app.messages import get_start_random_message, get_new_album_message,\
                          get_album_number_message, get_band_links_message
+from app.utils.utils import clean_string
 
 
 class BandRouter(APIRouter):
@@ -152,6 +153,7 @@ class BandRouter(APIRouter):
         return BandInformation(
             id=band['id'],
             name=band['name'],
+            name_slug=band['name_slug'],
             description=band['description'],
             country=band['country'],
             city=band['city'],
@@ -166,12 +168,14 @@ class BandRouter(APIRouter):
             ],
             discography=[
                 AlbumShortInformation(
-                    url=disc['url'],
                     id=disc['id'],
+                    title=disc['title'],
+                    title_slug=clean_string(disc['title']),
                     type=disc['type'],
                     cover_url=disc['cover_url'],
-                    title=disc['title'],
-                    release_date=disc['release_date']
+                    release_date=disc['release_date'],
+                    cover_loading=False,
+                    url=disc['url'],
                 )
                 for disc in band['discography']
             ],
