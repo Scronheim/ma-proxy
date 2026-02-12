@@ -125,7 +125,7 @@ class PageParser:
     @classmethod
     def extract_band_description(cls, data: str) -> list[BandLink]:
         soup = BeautifulSoup(data, 'html.parser')
-        return soup.find('body').decode_contents().replace('https://www.metal-archives.com/bands', '/#/bands')
+        return soup.find('body').decode_contents().replace('https://www.metal-archives.com/bands', '/bands')
     
     @classmethod
     def extract_band_links(cls, data: str) -> list[BandLink]:
