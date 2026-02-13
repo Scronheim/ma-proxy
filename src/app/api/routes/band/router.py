@@ -2,21 +2,19 @@ import dataclasses
 from datetime import datetime
 from typing import Dict, Union
 from urllib.parse import quote
-from bson import json_util
-import json
 
 from fastapi import APIRouter, BackgroundTasks
 from pymongo import AsyncMongoClient
 
-from app.page_handler.data_parser.models import AlbumInformation, AlbumShortInformation, BandInformation, MemberLineUp
+from app.page_handler.data_parser.models import AlbumInformation, AlbumShortInformation, BandInformation, MemberLineUp, OtherBand
 from app.page_handler.handler import MetalArchivesPageHandler
 from app.sse.manager import sse_manager
 
-from .models import BandInfoResponse, SearchResponse, BandLinksResponse, BandLink
+from .models import BandInfoResponse, SearchResponse, SocialLink
 
 from app.messages import get_start_random_message, get_new_album_message,\
-                         get_album_number_message, get_band_links_message
-from app.utils.utils import clean_string
+                         get_album_number_message
+from app.utils.utils import slug_string
 
 
 class BandRouter(APIRouter):
@@ -44,26 +42,8 @@ class BandRouter(APIRouter):
             tags=['Parsing'],
             methods=["GET", ]
         )
-        self.add_api_route(
-            path='/{band_id}/links',
-            endpoint=self.parse_band_links,
-            response_model=BandLinksResponse,
-            tags=['Parsing'],
-            methods=["GET", ]
-        )
         self.db = db
 
-    async def parse_band_links(self, band_id: str) -> BandLinksResponse:
-        await sse_manager.send_message(get_band_links_message())
-        info = self.page_handler._get_band_links(url=f'https://www.metal-archives.com/link/ajax-list/type/band/id/{band_id}')
-        return BandLinksResponse(
-            success=True if info.error is None else False,
-            data=info.data,
-            error=info.error,
-            url=info.url,
-            processing_time=info.processing_time
-        )
-    
     async def parse_random(self, background_tasks: BackgroundTasks) -> BandInfoResponse:
         await sse_manager.send_message(get_start_random_message())
         info = self.page_handler.get_band_info(url='https://www.metal-archives.com/band/random')
@@ -163,14 +143,38 @@ class BandRouter(APIRouter):
             genres=band['genres'],
             themes=band['themes'],
             current_lineup=[
-                MemberLineUp(name=member["name"], role=member["role"], url=member["url"])
+                MemberLineUp(
+                    id=member['id'],
+                    fullname=member['fullname'],
+                    fullname_slug=member['fullname_slug'],
+                    role=member['role'],
+                    other_bands=[
+                        OtherBand(**other_band)
+                        for other_band in member['other_bands']
+                    ],
+                    url=member['url']
+                )
                 for member in band['current_lineup']
+            ],
+            past_lineup=[
+                MemberLineUp(
+                    id=member['id'],
+                    fullname=member['fullname'],
+                    fullname_slug=member['fullname_slug'],
+                    role=member['role'],
+                    other_bands=[
+                        OtherBand(**other_band)
+                        for other_band in member['other_bands']
+                    ],
+                    url=member['url']
+                )
+                for member in band['past_lineup']
             ],
             discography=[
                 AlbumShortInformation(
                     id=disc['id'],
                     title=disc['title'],
-                    title_slug=clean_string(disc['title']),
+                    title_slug=slug_string(disc['title']),
                     type=disc['type'],
                     cover_url=disc['cover_url'],
                     release_date=disc['release_date'],
@@ -180,7 +184,7 @@ class BandRouter(APIRouter):
                 for disc in band['discography']
             ],
             links=[
-                BandLink(social=link['social'], url=link['url'])
+                SocialLink(**link)
                 for link in band['links']
             ],
             label=band['label'],

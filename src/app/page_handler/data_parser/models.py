@@ -2,6 +2,45 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 @dataclass
+class SocialLink:
+    social: str | None = None
+    url: str | None = None
+
+@dataclass
+class MemberAlbum:
+    id: int | None = None
+    title: str | None = None
+    title_slug: str | None = None
+    release_date: str | None = None
+    role: str | None = None
+
+@dataclass
+class MemberBand:
+    id: int | None = None
+    name: str | None = None
+    name_slug: str | None = None
+    albums: list[MemberAlbum] | None = None
+    role: str | None = None
+
+@dataclass
+class Member:
+    id: int | None = None
+    fullname: str | None = None
+    fullname_slug: str | None = None
+    age: str | None = None
+    place_of_birth: str | None = None
+    gender: str | None = None
+    photo_url: str | None = None
+    biography: str | None = None
+    active_bands: list[MemberBand] | None = field(default_factory=list)
+    past_bands: list[MemberBand] | None = field(default_factory=list)
+    guest_session: list[MemberBand] | None = field(default_factory=list)
+    live: list[MemberBand] | None = field(default_factory=list)
+    misc_staff: list[MemberBand] | None = field(default_factory=list)
+    links: list[SocialLink] | None = None
+    updated_at: datetime | str | None = None
+
+@dataclass
 class RandomBandInfo:
     id: int | None = None
     band_name: str | None = None
@@ -32,10 +71,19 @@ class BandLocationInfo:
     city: str | None = None
 
 @dataclass
-class MemberLineUp:
+class OtherBand:
+    id: int | None = None
     name: str | None = None
+    name_slug: str | None = None
+
+@dataclass
+class MemberLineUp:
+    id: int | None = None
+    fullname: str | None = None
+    fullname_slug: str | None = None
     role: str | None = None
     url: str | None = None
+    other_bands: list[OtherBand] = field(default_factory=list)
 
 @dataclass
 class Album:
@@ -89,11 +137,6 @@ class AlbumShortInformation:
     cover_loading: bool | None = False
     url: str | None = None
 
-@dataclass
-class BandLink:
-    social: str | None = None
-    url: str | None = None
-
 
 @dataclass
 class BandInformation:
@@ -110,8 +153,9 @@ class BandInformation:
     themes: str | None = None
     label: str | None = None
     current_lineup: list[MemberLineUp] = field(default_factory=list)
+    past_lineup: list[MemberLineUp] = field(default_factory=list)
     discography: list[AlbumShortInformation] = field(default_factory=list)
-    links: list[BandLink] | None = None
+    links: list[SocialLink] | None = None
     photo_url: str | None = None
     logo_url: str | None = None
     updated_at: datetime | str | None = None

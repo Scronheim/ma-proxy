@@ -17,10 +17,13 @@ from app.page_handler.data_parser.models import (
     Track,
     StatInfo,
     BandStatInfo,
-    BandLink,
-    RandomBandInfo
+    SocialLink,
+    Member,
+    MemberBand,
+    MemberAlbum,
+    OtherBand
 )
-from app.utils.utils import clean_string
+from app.utils.utils import slug_string
 
 
 class PageParser:
@@ -29,13 +32,14 @@ class PageParser:
     @classmethod
     def extract_search_album_info(cls, data: str) -> list[AlbumSearch]:
         soup = BeautifulSoup(data, 'html.parser')
+        soup
         results = json.loads(soup.find('pre').text)['aaData']
         albums = []
         for album in results:
             band_soup = BeautifulSoup(album[0], 'html.parser').find('a')
             band_id = band_soup.get('href').split('/').pop()
             band_name = band_soup.text.strip()
-            band_name_slug = clean_string(band_soup.text.strip())
+            band_name_slug = slug_string(band_soup.text.strip())
             album_soup = BeautifulSoup(album[1], 'html.parser').find('a')
             album_id = album_soup.get('href').split('/').pop()
             album_name = album_soup.text.strip()
@@ -46,7 +50,7 @@ class PageParser:
                 AlbumSearch(
                     id=int(album_id),
                     title=album_name,
-                    title_slug=clean_string(album_name),
+                    title_slug=slug_string(album_name),
                     band_name=band_name,
                     band_name_slug=band_name_slug,
                     band_id=int(band_id),
@@ -75,7 +79,7 @@ class PageParser:
                 BandSearch(
                     id=int(band_id),
                     name=name,
-                    name_slug=clean_string(name),
+                    name_slug=slug_string(name),
                     genre=genre,
                     country=country,
                 )
@@ -103,7 +107,8 @@ class PageParser:
             band_info.label = label
 
             band_info.genres = cls._get_genre(soup)
-            band_info.current_lineup = cls._get_current_lineup(soup)
+            band_info.current_lineup = cls._get_lineup(soup)
+            band_info.past_lineup = cls._get_lineup(soup, False)
             band_info.photo_url = cls._get_photo_url(soup)
             band_info.logo_url = cls._get_logo_url(soup)
             band_info.updated_at = datetime.datetime.now(datetime.timezone.utc)
@@ -120,22 +125,94 @@ class PageParser:
     @classmethod
     def extract_lyrics_info(cls, data: str) -> str:
         soup = BeautifulSoup(data, 'html.parser')
-        return soup.find('body').text.strip()
-   
+        return soup.find('body').get_text(strip=True)
+    
     @classmethod
-    def extract_band_description(cls, data: str) -> list[BandLink]:
+    def extract_band_description(cls, data: str) -> str:
         soup = BeautifulSoup(data, 'html.parser')
         return soup.find('body').decode_contents().replace('https://www.metal-archives.com/bands', '/bands')
     
     @classmethod
-    def extract_band_links(cls, data: str) -> list[BandLink]:
+    def extract_member_info(cls, data: str) -> Member:
+        soup = BeautifulSoup(data, 'html.parser')
+        fullname = soup.find('h1', class_='band_member_name').get_text(strip=True)
+        scripts = soup.find_all('script')
+        id = 0
+        for script in scripts:
+            if script.string and 'artistId' in script.string:
+                match = re.search(r'artistId\s*=\s*(\d+);', script.string)
+                if match:
+                    id = int(match.group(1))
+                    break
+        age = soup.find('dl', class_='float_left').find_all('dd')[1].get_text(strip=True)
+        right_side = soup.find('dl', class_='float_right').find_all('dd')
+        place_of_birth = right_side[0].get_text(strip=True)
+        gender = right_side[1].get_text(strip=True)
+        photo_url = soup.find('a', id='artist').get('href')
+        biography = ''
+        biography_div = soup.find('div', class_='clear band_comment')
+        if len(biography_div.contents) > 1:
+            h2 = biography_div.find_all('h2')
+            for tag in h2:
+                tag.decompose()
+            biography = biography_div.decode_contents().strip().replace('https://www.metal-archives.com/bands', '/bands').replace('\t', '').replace('\n', '')
+        active_bands = []
+        past_bands = []
+        guest_session = []
+        live = []
+        misc_staff = []
+        
+        active_bands_div = soup.find('div', id='artist_tab_active')
+        if active_bands_div:
+            member_in_active_band_divs = active_bands_div.find_all('div', class_='member_in_band')
+            active_bands = cls._parse_member_bands(member_in_active_band_divs)
+        
+        past_bands_div = soup.find('div', id='artist_tab_past')
+        if past_bands_div:
+            member_in_past_band_divs = past_bands_div.find_all('div', class_='member_in_band')
+            past_bands = cls._parse_member_bands(member_in_past_band_divs)
+        
+        guest_session_div = soup.find('div', id='artist_tab_guest')
+        if guest_session_div:
+            member_in_guest_session_divs = guest_session_div.find_all('div', class_='member_in_band')
+            guest_session = cls._parse_member_bands(member_in_guest_session_divs)
+        
+        live_div = soup.find('div', id='artist_tab_live')
+        if live_div:
+            member_in_live_divs = live_div.find_all('div', class_='member_in_band')
+            live = cls._parse_member_bands(member_in_live_divs)
+        
+        misc_staff_div = soup.find('div', id='artist_tab_misc')
+        if misc_staff_div:
+            member_in_misc_staff_divs = misc_staff_div.find_all('div', class_='member_in_band')
+            misc_staff = cls._parse_member_bands(member_in_misc_staff_divs)
+        
+        return Member(
+            id=id,
+            fullname=fullname,
+            fullname_slug=slug_string(fullname),
+            age=age,
+            place_of_birth=place_of_birth,
+            gender=gender,
+            photo_url=photo_url,
+            biography=biography,
+            active_bands=active_bands,
+            past_bands=past_bands,
+            guest_session=guest_session,
+            live=live,
+            misc_staff=misc_staff,
+            updated_at=datetime.datetime.now(datetime.timezone.utc)
+        )
+    
+    @classmethod
+    def extract_social_links(cls, data: str) -> list[SocialLink]:
         soup = BeautifulSoup(data, 'html.parser')
         all_links = soup.find_all('a', target='_blank')
         band_links = []
         for link in all_links:
             social = link.text.strip()
             url = link.get('href')
-            band_links.append(BandLink(social=social, url=url))
+            band_links.append(SocialLink(social=social, url=url))
         return band_links
     
     @classmethod
@@ -169,13 +246,59 @@ class PageParser:
 
         return album_info
 
+    def _parse_member_bands(member_in_band_divs: list[Tag]) -> list[MemberBand]:
+        active_bands = []
+        for band_div in member_in_band_divs:
+            band_name_h3 = band_div.find('h3', class_='member_in_band_name')
+            band_link = band_name_h3.find('a')
+            if band_link:
+                band_id = int(band_link.get('href').split('#')[0].split('/').pop())
+                band_name = band_link.get_text(strip=True)
+                band_name_slug = slug_string(band_name)
+            else:
+                band_name = band_name_h3.get_text(strip=True)
+                band_id = None
+                band_name_slug = None
+            role = band_div.find('p', class_='member_in_band_role').get_text(strip=True)
+            albums_table = band_div.find('table')
+            albums = []
+            if albums_table:
+                albums_tr = albums_table.find_all('tr')
+                for album_tr in albums_tr:
+                    album_tds = album_tr.find_all('td')
+                    if len(album_tds) > 1:
+                        album_id = album_tds[1].find('a').get('href').split('/').pop()
+                        album_title = album_tds[1].find('a').get_text(strip=True)
+                        album_title_slug = slug_string(album_title)
+                        release_date = album_tds[0].get_text(strip=True)
+                        role = album_tds[2].get_text(strip=True).replace('\t', '')
+                        albums.append(
+                            MemberAlbum(
+                                id=int(album_id),
+                                title=album_title,
+                                title_slug=album_title_slug,
+                                release_date=release_date,
+                                role=role
+                            )
+                        )
+            active_bands.append(
+                MemberBand(
+                    id=band_id,
+                    name=band_name,
+                    name_slug=band_name_slug,
+                    albums=albums,
+                    role=role
+                )
+            )
+        return active_bands    
+
     @staticmethod
     def _get_band_name_and_id(soup: BeautifulSoup) -> list[str, int]:
         band_name_elem = soup.find('h1', class_='band_name')
         if not band_name_elem:
             band_name_elem = soup.find('h2', class_='band_name')
         band_id = band_name_elem.find('a').get('href').split('/').pop()
-        return band_name_elem.text.strip(), clean_string(band_name_elem.text.strip()), int(band_id)
+        return band_name_elem.text.strip(), slug_string(band_name_elem.text.strip()), int(band_id)
 
     @staticmethod
     def _get_album_info(cls, soup: BeautifulSoup) -> AlbumInformation:
@@ -187,7 +310,6 @@ class PageParser:
 
             return album_info
         except (AttributeError, IndexError) as err:
-            # print(err)
             album_info.parsing_error = f"Ошибка при разборе HTML: {str(err)}"
             return None
 
@@ -273,10 +395,11 @@ class PageParser:
         album_name = soup.find('h1', class_='album_name')
         album_info.id = int(album_name.find('a').get('href').split('/').pop())
         album_info.title = album_name.text.strip()
+        album_info.title_slug = slug_string(album_name.text.strip())
         band_names = soup.find('h2', class_='band_name').find_all('a')
         for band_link in band_names:
             album_info.band_names.append(band_link.text.strip())
-            album_info.band_names_slug.append(clean_string(band_link.text.strip()))
+            album_info.band_names_slug.append(slug_string(band_link.text.strip()))
             album_info.band_ids.append(int(band_link.get('href').split('/').pop()))
         cover_url = soup.find(id='cover')
         if cover_url:
@@ -344,21 +467,66 @@ class PageParser:
             return genre_dd.text
 
     @classmethod
-    def _get_current_lineup(cls, soup: BeautifulSoup) -> list[MemberLineUp]:
-        current_lineup_table = soup.find('div', id='band_tab_members_current')
-        lineup_table = current_lineup_table.find('table', class_='lineupTable')
+    def _get_lineup(cls, soup: BeautifulSoup, current: bool = True) -> list[MemberLineUp]:
+        lineup_div = soup.find('div', id="band_tab_members_current" if current == True else "band_tab_members_past")
         members = []
-        if lineup_table:
-            rows = lineup_table.find_all('tr', class_='lineupRow')
-            for member in rows:
-                member_link = member.find('a')
-                members.append(
-                    MemberLineUp(
-                        name=member_link.text.strip(),
-                        role=re.sub(r'\s+', ' ', member.find_all('td')[1].text).strip(),
-                        url=member_link.get('href').strip()
-                    )
-                )
+        if lineup_div:
+            lineup_table = lineup_div.find('table', class_='lineupTable')
+            if lineup_table:
+                rows = lineup_table.find_all('tr')
+                for element in rows:
+                    if element.name == 'tr' and 'lineupRow' in element.get('class', []):
+                        name_link = element.find('a', class_='bold')
+                        if name_link:
+                            fullname = name_link.text.strip()
+                            href = name_link.get('href', '')
+                            artist_id = int(href.split('/')[-1]) if href else None
+                            
+                            role_td = element.find_all('td')[1]
+                            role = role_td.text.strip()
+                            
+                            current_artist = {
+                                'id': artist_id,
+                                'fullname': fullname,
+                                'fullname_slug': slug_string(fullname),
+                                'role': role,
+                                'url': href,
+                                'other_bands': []
+                            }
+                            members.append(MemberLineUp(**current_artist))
+                    
+                    elif element.name == 'tr' and 'lineupBandsRow' in element.get('class', []):
+                        if members and current_artist:
+                            see_also_td = element.find('td')
+                            if see_also_td:
+                                see_also_text = see_also_td.get_text(strip=True)
+                                see_also_text = see_also_text.replace('See also:', '').strip()
+                                
+                                items = [item.strip() for item in see_also_text.split(',') if item.strip()]
+                                
+                                see_also_links = see_also_td.find_all('a')
+                                
+                                links_dict = {}
+                                for link in see_also_links:
+                                    link_text = link.text.strip()
+                                    href = link.get('href')
+                                    if '/bands/' in href:
+                                        links_dict[link_text] = href.split('/')[-1]
+                                for item in items:
+                                    if item and item != 'See also:':
+                                        item = item.replace('ex-', '')
+                                        if item in links_dict:
+                                            members[-1].other_bands.append(OtherBand(
+                                                id=int(links_dict[item]),
+                                                name=item,
+                                                name_slug=slug_string(item)
+                                            ))
+                                        else:
+                                            members[-1].other_bands.append(OtherBand(
+                                                id=None,
+                                                name=item,
+                                                name_slug=slug_string(item)
+                                            ))
 
         return members
 
@@ -382,7 +550,7 @@ class PageParser:
                     AlbumShortInformation(
                         id=int(url.split('/').pop()),
                         title=album_link.text.strip(),
-                        title_slug=clean_string(album_link.text.strip()),
+                        title_slug=slug_string(album_link.text.strip()),
                         type=cols[1].text.strip(),
                         release_date=cols[2].text.strip(),
                         cover_loading=True,

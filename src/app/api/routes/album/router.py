@@ -8,7 +8,7 @@ from app.page_handler.data_parser.models import AlbumInformation, Track
 from app.page_handler.handler import MetalArchivesPageHandler
 
 from .models import AlbumInfoResponse, SearchResponse
-from app.utils.utils import clean_string
+from app.utils.utils import slug_string
 
 
 class AlbumRouter(APIRouter):
@@ -52,7 +52,7 @@ class AlbumRouter(APIRouter):
         album_obj = AlbumInformation(
             id=result['id'],
             title=result['title'],
-            title_slug=clean_string(result['title']),
+            title_slug=slug_string(result['title']),
             band_names=result['band_names'],
             band_names_slug=result['band_names_slug'],
             band_ids=result['band_ids'],

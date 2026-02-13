@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 
-from app.page_handler.data_parser.models import BandInformation, BandSearch, BandLink, RandomBandInfo
+from app.page_handler.data_parser.models import BandInformation, BandSearch, SocialLink, RandomBandInfo
 
 
 class BandInfoResponse(BaseModel):
@@ -22,7 +22,7 @@ class RandomBandIdResponse(BaseModel):
 class BandLinksResponse(BaseModel):
     """Модель ответа с информацией о ссылках группы"""
     success: bool
-    data: list[BandLink] | None = None
+    data: list[SocialLink] | None = None
     error: str | None = None
     url: str
     processing_time: float
