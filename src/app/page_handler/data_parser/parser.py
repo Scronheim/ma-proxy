@@ -148,7 +148,10 @@ class PageParser:
         right_side = soup.find('dl', class_='float_right').find_all('dd')
         place_of_birth = right_side[0].get_text(strip=True)
         gender = right_side[1].get_text(strip=True)
-        photo_url = soup.find('a', id='artist').get('href')
+        photo_link = soup.find('a', id='artist')
+        photo_url = None
+        if photo_link:
+            photo_url = photo_link.get('href')
         biography = ''
         biography_div = soup.find('div', class_='clear band_comment')
         if len(biography_div.contents) > 1:
