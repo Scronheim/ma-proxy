@@ -2,9 +2,6 @@ import datetime
 
 from pydantic import BaseModel, Field
 
-from app.api.routes.band.models import BandInformation
-from app.api.routes.album.models import AlbumInformation
-
 class UserCreate(BaseModel):
     username: str = Field(..., min_length=3, max_length=50)
     password: str = Field(..., min_length=6)
@@ -12,17 +9,6 @@ class UserCreate(BaseModel):
 class UserLogin(BaseModel):
     username: str
     password: str
-
-class UserInDB(BaseModel):
-    username: str
-    real_name: str | None = None
-    gender: str | None = None
-    country: str | None = None
-    role: str | None = None
-    favorite_bands: list[BandInformation] | list[int] = Field(default_factory=list)
-    favorite_albums: list[AlbumInformation] | list[int] = Field(default_factory=list)
-    created_at: datetime.datetime = datetime.datetime.now(datetime.timezone.utc)
-
 
 class ShortBandInfo(BaseModel):
     id: int | None = None
@@ -43,13 +29,14 @@ class ShortAlbumInfo(BaseModel):
     type: str | None = None
     cover_url: str | None = None
 
-
 class Me(BaseModel):
     username: str | None = None
     real_name: str | None = None
     gender: str | None = None
     country: str | None = None
-    role: str | None = None
+    role: str = 'user'
+    avatar_color: str = 'red'
+    favorite_genre: str | None = None
     favorite_bands: list[ShortBandInfo] | list[int] = Field(default_factory=list)
     favorite_albums: list[ShortAlbumInfo] | list[int] = Field(default_factory=list)
     created_at: datetime.datetime = datetime.datetime.now(datetime.timezone.utc)

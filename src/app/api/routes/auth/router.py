@@ -5,7 +5,7 @@ from pymongo import AsyncMongoClient
 from pymongo.errors import DuplicateKeyError
 
 from app.page_handler.handler import MetalArchivesPageHandler
-from app.models.user import UserCreate, UserLogin, UserInDB, Me, Token
+from app.models.user import UserCreate, UserLogin, Me, Token
 from app.core.security import get_password_hash, verify_password, create_access_token, decode_access_token
 from app.core.config import settings
 
@@ -65,9 +65,11 @@ class AuthRouter(APIRouter):
             "real_name": None,
             "gender": None,
             "country": None,
+            "favorite_genre": None,
             "favorite_bands": [],
             "favorite_albums": [],
             "role": "user",
+            "avatar_color": "red",
             "created_at": datetime.now(timezone.utc),
         }
 
@@ -109,7 +111,7 @@ class AuthRouter(APIRouter):
                 detail="Token not found"
             )
     
-    async def update_me(self, request: Request, form_data: UserInDB):
+    async def update_me(self, request: Request, form_data: Me):
         payload = decode_access_token(request.headers['authorization'])
         await self.db.users.update_one({'username': payload['sub']}, {'$set': form_data.model_dump()})
         user = await self._get_user_by_username(payload['sub'])
@@ -155,7 +157,9 @@ class AuthRouter(APIRouter):
                     "real_name": 1,
                     "gender": 1,
                     "country": 1,
+                    "avatar_color": 1,
                     "created_at": 1,
+                    "favorite_genre": 1,
                     "favorite_bands.id": 1,
                     "favorite_bands.name": 1,
                     "favorite_bands.name_slug": 1,
