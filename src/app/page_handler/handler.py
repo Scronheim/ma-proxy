@@ -62,6 +62,12 @@ class MetalArchivesPageHandler:
             data.data = member_info
         return data
     
+    def get_bands_by_country(self, url: str) -> PageInfo:
+        data = self._get_data(url)
+        if data.html is not None:
+            data.data = self._parser_cls.extract_bands_by_country(data=data.html)
+        return data
+    
     def get_bands_by_letter(self, url: str) -> PageInfo:
         data = self._get_data(url)
         if data.html is not None:

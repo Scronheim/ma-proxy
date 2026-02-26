@@ -13,7 +13,7 @@ from app.page_handler.data_parser.models import (
     BandInformation,
     BandLocationInfo,
     BandSearch,
-    BandSearchByLetter,
+    BandSearchBy,
     MemberLineUp,
     StatusAndDateInfo,
     Track,
@@ -24,7 +24,7 @@ from app.page_handler.data_parser.models import (
     MemberBand,
     MemberAlbum,
     OtherBand,
-    SearchByLetterResults,
+    SearchByResults,
     ShortMember,
     RipArtistsResults,
     ShortBandInfo
@@ -266,7 +266,7 @@ class PageParser:
         return RipArtistsResults(results=members, total=results['iTotalRecords'])
 
     @classmethod
-    def extract_bands_by_letter(cls, data: str) -> SearchByLetterResults:
+    def extract_bands_by_country(cls, data: str) -> SearchByResults:
         soup = BeautifulSoup(data, 'html.parser')
         results = ast.literal_eval(soup.find('pre').decode_contents())
         bands = []
@@ -278,12 +278,12 @@ class PageParser:
 
             id_match = re.search(r"/(\d+)'", html_content)
             band_id = id_match.group(1) if id_match else None
-            country = item[1].strip()
-            genre = item[2].strip()
+            genre = item[1].strip()
+            country = item[2].strip()
             status_match = re.search(r'>([^<]+)<', html.unescape(item[3]))
             status = status_match.group(1)
             bands.append(
-                BandSearchByLetter(
+                BandSearchBy(
                     id=int(band_id),
                     name=name,
                     name_slug=slug_string(name),
@@ -292,7 +292,36 @@ class PageParser:
                     status=status
                 )
             )
-        return SearchByLetterResults(results=bands, total=results['iTotalRecords'])
+        return SearchByResults(results=bands, total=results['iTotalRecords'])
+    
+    @classmethod
+    def extract_bands_by_letter(cls, data: str) -> SearchByResults:
+        soup = BeautifulSoup(data, 'html.parser')
+        results = ast.literal_eval(soup.find('pre').decode_contents())
+        bands = []
+        for item in results['aaData']:
+            html_content = html.unescape(item[0])
+
+            match = re.search(r"'>([^<]+)</a>", html_content)
+            name = match.group(1) if match else html_content
+
+            id_match = re.search(r"/(\d+)'", html_content)
+            band_id = id_match.group(1) if id_match else None
+            genres = item[1].strip()
+            country = item[2].strip()
+            status_match = re.search(r'>([^<]+)<', html.unescape(item[3]))
+            status = status_match.group(1)
+            bands.append(
+                BandSearchBy(
+                    id=int(band_id),
+                    name=name,
+                    name_slug=slug_string(name),
+                    genres=genres,
+                    country=country,
+                    status=status
+                )
+            )
+        return SearchByResults(results=bands, total=results['iTotalRecords'])
 
     
     @classmethod

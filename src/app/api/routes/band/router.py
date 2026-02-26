@@ -43,6 +43,13 @@ class BandRouter(APIRouter):
             methods=["GET"]
         )
         self.add_api_route(
+            path='/search/country/{country}',
+            endpoint=self.search_band_by_country,
+            response_model=SearchByLetterResponse,
+            tags=['Parsing'],
+            methods=["GET"]
+        )
+        self.add_api_route(
             path='/{band_id}',
             endpoint=self.parse_band_by_id,
             response_model=BandInfoResponse,
@@ -51,13 +58,25 @@ class BandRouter(APIRouter):
         )
         self.db = db
 
+    async def search_band_by_country(self, country: str, page: str = '1') -> SearchByLetterResponse:
+        offset = (int(page) - 1) * 500
+        
+        info = self.page_handler.get_bands_by_country(url=f'https://www.metal-archives.com/browse/ajax-country/c/{country}?iDisplayStart={offset}&iSortCol_0=0&sSortDir_0=asc&iSortingCols=1')
+        return SearchByLetterResponse(
+            success=True if info.error is None else False,
+            data=info.data,
+            error=info.error,
+            url=info.url,
+            processing_time=info.processing_time,
+        )
+    
     async def search_band_by_letter(self, letter: str, page: str = '1') -> SearchByLetterResponse:
         if len(letter) > 3:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Длина должна быть до 3ёх символов"
         )
-        offset = int(page) * 500
+        offset = (int(page) - 1) * 500
         info = self.page_handler.get_bands_by_letter(url=f'https://www.metal-archives.com/browse/ajax-letter/l/{letter}?iDisplayStart={offset}')
         return SearchByLetterResponse(
             success=True if info.error is None else False,

@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 
-from app.page_handler.data_parser.models import BandInformation, BandSearch, SearchByLetterResults, SocialLink, ShortBandInfo
+from app.page_handler.data_parser.models import BandInformation, BandSearch, SearchByResults, SocialLink, ShortBandInfo
 
 
 class BandInfoResponse(BaseModel):
@@ -38,7 +38,7 @@ class SearchResponse(BaseModel):
 class SearchByLetterResponse(BaseModel):
     """Модель ответа поиска групп по букве"""
     success: bool
-    data: SearchByLetterResults | None = None
+    data: SearchByResults | None = None
     error: str | None = None
     url: str
     processing_time: float

@@ -184,13 +184,13 @@ class BandSearch:
     country: str | None = None
 
 @dataclass
-class BandSearchByLetter(BandSearch):
+class BandSearchBy(BandSearch):
     status: str | None = None
 
 @dataclass
-class SearchByLetterResults:
+class SearchByResults:
     total: int
-    results: list[BandSearchByLetter]
+    results: list[BandSearchBy]
 
 @dataclass
 class RipArtistsResults:
