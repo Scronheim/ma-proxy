@@ -3,14 +3,14 @@ from datetime import datetime
 from typing import Dict, Union
 from urllib.parse import quote
 
-from fastapi import APIRouter, BackgroundTasks
+from fastapi import APIRouter, BackgroundTasks, HTTPException, status
 from pymongo import AsyncMongoClient
 
 from app.page_handler.data_parser.models import AlbumInformation, AlbumShortInformation, BandInformation, MemberLineUp, OtherBand
 from app.page_handler.handler import MetalArchivesPageHandler
 from app.sse.manager import sse_manager
 
-from .models import BandInfoResponse, SearchResponse, SocialLink
+from .models import BandInfoResponse, SearchResponse, SocialLink, SearchByLetterResponse
 
 from app.messages import get_start_random_message, get_new_album_message,\
                          get_album_number_message
@@ -26,24 +26,48 @@ class BandRouter(APIRouter):
             endpoint=self.parse_random,
             response_model=BandInfoResponse,
             tags=['Parsing'],
-            methods=["GET", ]
+            methods=["GET"]
         )
         self.add_api_route(
             path='/search',
             endpoint=self.search_bands,
             response_model=SearchResponse,
             tags=['Parsing'],
-            methods=["GET", ]
+            methods=["GET"]
+        )
+        self.add_api_route(
+            path='/search/letter/{letter}',
+            endpoint=self.search_band_by_letter,
+            response_model=SearchByLetterResponse,
+            tags=['Parsing'],
+            methods=["GET"]
         )
         self.add_api_route(
             path='/{band_id}',
             endpoint=self.parse_band_by_id,
             response_model=BandInfoResponse,
             tags=['Parsing'],
-            methods=["GET", ]
+            methods=["GET"]
         )
         self.db = db
 
+    async def search_band_by_letter(self, letter: str, page: str = '1') -> SearchByLetterResponse:
+        if len(letter) > 3:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Длина должна быть до 3ёх символов"
+        )
+        offset = int(page) * 500
+        info = self.page_handler.get_bands_by_letter(url=f'https://www.metal-archives.com/browse/ajax-letter/l/{letter}?iDisplayStart={offset}')
+        return SearchByLetterResponse(
+            success=True if info.error is None else False,
+            data=info.data,
+            error=info.error,
+            url=info.url,
+            processing_time=info.processing_time,
+        )
+
+    
     async def parse_random(self, background_tasks: BackgroundTasks) -> BandInfoResponse:
         await sse_manager.send_message(get_start_random_message())
         info = self.page_handler.get_band_info(url='https://www.metal-archives.com/band/random')

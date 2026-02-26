@@ -4,7 +4,7 @@ from pymongo import AsyncMongoClient
 
 from app.page_handler.handler import MetalArchivesPageHandler
 from app.page_handler.data_parser.models import Member, MemberBand, SocialLink
-from .models import MemberInfoResponse
+from .models import MemberInfoResponse, RipMembersInfoResponse
 
 
 class ArtistsRouter(APIRouter):
@@ -12,15 +12,37 @@ class ArtistsRouter(APIRouter):
         super().__init__(prefix='/artist', *args, **kwargs)
         self.page_handler = page_handler
         self.add_api_route(
+            path='/rip',
+            endpoint=self.parse_rip_artists,
+            response_model=RipMembersInfoResponse,
+            tags=['Parsing'],
+            methods=["GET"]
+        )
+        self.add_api_route(
             path='/{member_id}',
             endpoint=self.parse_member,
             response_model=MemberInfoResponse,
             tags=['Parsing'],
-            methods=["GET", ]
+            methods=["GET"]
         )
         self.db = db
 
-    async def parse_member(self, background_tasks: BackgroundTasks, member_id: str) -> MemberInfoResponse:
+    async def parse_rip_artists(self, page: str = '1', year: str = '') -> RipMembersInfoResponse:
+        if page == '1':
+            page = '0'
+        offset = int(page) * 100
+        info = self.page_handler.get_rip_artists(
+            url=f'https://www.metal-archives.com/artist/ajax-rip?sSearch={year}&iDisplayStart={offset}&iDisplayLength=100&iSortCol_0=3&sSortDir_0=desc&iSortingCols=1'
+        )
+        return RipMembersInfoResponse(
+            success=True if info.error is None else False,
+            data=info.data,
+            error=info.error,
+            url=info.url,
+            processing_time=info.processing_time,
+        )
+
+    async def parse_member(self, member_id: str) -> MemberInfoResponse:
         member = await self._check_member_in_db(int(member_id))
         url = f'https://www.metal-archives.com/artists/please_dont_ban_me/{member_id}'
         

@@ -5,9 +5,10 @@ from pymongo import AsyncMongoClient
 from pymongo.errors import DuplicateKeyError
 
 from app.page_handler.handler import MetalArchivesPageHandler
-from app.models.user import UserCreate, UserLogin, Me, Token
 from app.core.security import get_password_hash, verify_password, create_access_token, decode_access_token
 from app.core.config import settings
+
+from .models import UserCreate, UserLogin, Me, Token
 
 class AuthRouter(APIRouter):
     def __init__(self, page_handler: MetalArchivesPageHandler, db: AsyncMongoClient, *args, **kwargs):
@@ -55,7 +56,7 @@ class AuthRouter(APIRouter):
         if existing:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Email already registered"
+                detail="Имя пользователя уже занято"
             )
 
         hashed_password = get_password_hash(user_data.password)
@@ -65,6 +66,8 @@ class AuthRouter(APIRouter):
             "real_name": None,
             "gender": None,
             "country": None,
+            "bands_ratings": [],
+            "albums_ratings": [],
             "favorite_genre": None,
             "favorite_bands": [],
             "favorite_albums": [],
@@ -73,13 +76,7 @@ class AuthRouter(APIRouter):
             "created_at": datetime.now(timezone.utc),
         }
 
-        try:
-            await self.db.users.insert_one(user_doc)
-        except DuplicateKeyError:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Username already registered"
-            )
+        await self.db.users.insert_one(user_doc)
 
         access_token = create_access_token(
             data={"sub": user_data.username},
@@ -92,7 +89,7 @@ class AuthRouter(APIRouter):
         if not user or not verify_password(form_data.password, user[0]["password"]):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Incorrect username or password"
+                detail="Неправильное имя пользователя или пароль"
             )
 
         access_token = create_access_token(
@@ -103,16 +100,17 @@ class AuthRouter(APIRouter):
     
     async def me(self, request: Request):
         payload = decode_access_token(request.headers['authorization'])
-        user = await self._get_user_by_username(payload['sub'])
-        if user:
+        if payload:
+            user = await self._get_user_by_username(payload['sub'])
             return Me(**user[0])
         raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Token not found"
-            )
+                detail="Токен не найден"
+        )
     
     async def update_me(self, request: Request, form_data: Me):
         payload = decode_access_token(request.headers['authorization'])
+        del form_data.role
         await self.db.users.update_one({'username': payload['sub']}, {'$set': form_data.model_dump()})
         user = await self._get_user_by_username(payload['sub'])
         return Me(**user[0])
@@ -123,7 +121,7 @@ class AuthRouter(APIRouter):
             return Me(**user[0])
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
+            detail="Пользователь не найден"
         )
 
     async def _get_user_by_username(self, username: str):
@@ -157,8 +155,11 @@ class AuthRouter(APIRouter):
                     "real_name": 1,
                     "gender": 1,
                     "country": 1,
+                    "role": 1,
                     "avatar_color": 1,
                     "created_at": 1,
+                    "bands_ratings": 1,
+                    "albums_ratings": 1,
                     "favorite_genre": 1,
                     "favorite_bands.id": 1,
                     "favorite_bands.name": 1,

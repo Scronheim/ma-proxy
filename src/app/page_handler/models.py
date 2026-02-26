@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from app.page_handler.data_parser.models import BandInformation, AlbumInformation, BandSearch, StatInfo, SocialLink
+from app.page_handler.data_parser.models import BandInformation, AlbumInformation, BandSearch, StatInfo, SocialLink, BandSearchByLetter
 
 
 @dataclass
@@ -9,5 +9,5 @@ class PageInfo:
     processing_time: float
     error: str | None = None
     html: str | None = None
-    data: BandInformation | AlbumInformation | StatInfo | list[SocialLink] | None | list[BandSearch] = None
+    data: BandInformation | AlbumInformation | StatInfo | list[SocialLink] | list[BandSearch] | list[BandSearchByLetter] | None = None
 

@@ -1,7 +1,8 @@
 import time
+import dataclasses
 from urllib.parse import quote
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from pymongo import AsyncMongoClient
 
 from app.page_handler.data_parser.models import AlbumInformation, Track
@@ -20,14 +21,21 @@ class AlbumRouter(APIRouter):
             endpoint=self.search_albums,
             response_model=SearchResponse,
             tags=['Parsing'],
-            methods=["GET", ]
+            methods=['GET', ]
         )
         self.add_api_route(
             path='/{album_id}',
             endpoint=self.get_album_by_id,
             response_model=AlbumInfoResponse,
             tags=['Parsing'],
-            methods=["GET", ]
+            methods=['GET']
+        )
+        self.add_api_route(
+            path='/{album_id}',
+            endpoint=self.update_album_by_id,
+            response_model=AlbumInfoResponse,
+            tags=['Parsing'],
+            methods=['PATCH']
         )
         self.db = db
 
@@ -65,9 +73,10 @@ class AlbumRouter(APIRouter):
                     title=track['title'],
                     number=track['number'],
                     duration=track['duration'],
-                    lyrics=track.get('lyrics'),
+                    lyrics=track.get('lyrics', None),
                     cdNumber=track['cdNumber'],
                     side=track['side'],
+                    url=track.get('url', None)
                 )
                 for track in result['tracklist']
             ],
@@ -98,3 +107,15 @@ class AlbumRouter(APIRouter):
             url=info.url,
             processing_time=info.processing_time,
         )
+
+    async def update_album_by_id(self, album_id: str, album: AlbumInformation) -> AlbumInfoResponse:
+        album.title_slug = slug_string(album.title)
+        await self.db.albums.replace_one({'id': int(album_id)}, dataclasses.asdict(album))
+        return AlbumInfoResponse(
+            success=True,
+            data=album,
+            error=None,
+            url=f'/album/{album_id}',
+            processing_time=0,
+        )
+

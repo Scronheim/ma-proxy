@@ -1,7 +1,8 @@
 import datetime
-import json
+import ast
 import re
-from typing import Dict, Optional
+import html
+from typing import Dict, Optional, Tuple, List
 
 from bs4 import BeautifulSoup, Tag
 
@@ -12,6 +13,7 @@ from app.page_handler.data_parser.models import (
     BandInformation,
     BandLocationInfo,
     BandSearch,
+    BandSearchByLetter,
     MemberLineUp,
     StatusAndDateInfo,
     Track,
@@ -21,7 +23,11 @@ from app.page_handler.data_parser.models import (
     Member,
     MemberBand,
     MemberAlbum,
-    OtherBand
+    OtherBand,
+    SearchByLetterResults,
+    ShortMember,
+    RipArtistsResults,
+    ShortBandInfo
 )
 from app.utils.utils import slug_string
 
@@ -33,7 +39,7 @@ class PageParser:
     def extract_search_album_info(cls, data: str) -> list[AlbumSearch]:
         soup = BeautifulSoup(data, 'html.parser')
         soup
-        results = json.loads(soup.find('pre').text)['aaData']
+        results = ast.literal_eval(soup.find('pre').text)['aaData']
         albums = []
         for album in results:
             band_soup = BeautifulSoup(album[0], 'html.parser').find('a')
@@ -63,7 +69,7 @@ class PageParser:
     @classmethod
     def extract_search_band_info(cls, data: str) -> list[BandSearch]:
         soup = BeautifulSoup(data, 'html.parser')
-        results = json.loads(soup.find('pre').text)['aaData']
+        results = ast.literal_eval(soup.find('pre').text)['aaData']
         bands = []
         for item in results:
             html_content = item[0]
@@ -80,7 +86,7 @@ class PageParser:
                     id=int(band_id),
                     name=name,
                     name_slug=slug_string(name),
-                    genre=genre,
+                    genres=genre,
                     country=country,
                 )
             )
@@ -208,7 +214,7 @@ class PageParser:
         )
     
     @classmethod
-    def extract_social_links(cls, data: str) -> list[SocialLink]:
+    def extract_social_links(cls, data: str) -> List[SocialLink]:
         soup = BeautifulSoup(data, 'html.parser')
         all_links = soup.find_all('a', target='_blank')
         band_links = []
@@ -217,6 +223,77 @@ class PageParser:
             url = link.get('href')
             band_links.append(SocialLink(social=social, url=url))
         return band_links
+    
+    @classmethod
+    def extract_rip_artists(cls, data: str) -> RipArtistsResults:
+        soup = BeautifulSoup(data, 'html.parser')
+        results = ast.literal_eval(soup.find('pre').decode_contents())
+        members = []
+        for item in results['aaData']:
+            html_content = html.unescape(item[0])
+
+            match = re.search(r'">([^<]+)</a>', html_content)
+            fullname = match.group(1) if match else html_content
+            artist_id_match = re.search(r'/(\d+)', html_content)
+            artist_id = artist_id_match.group(1) if artist_id_match else None
+            country = item[1].strip()
+            bands_links = item[2].split(', ')
+            bands = []
+            for link in bands_links:
+                band_link = html.unescape(link)
+                if band_link:
+                    match_link = re.search(r'>([^<]+)</a>', band_link)
+                    band_name = match_link.group(1) if match_link else band_link
+                    band_id_match = re.search(r'/(\d+)', band_link)
+                    if band_id_match:
+                        band_id = band_id_match.group(1) if band_id_match else None
+                        bands.append(ShortBandInfo(id=int(band_id), band_name=band_name, band_name_slug=slug_string(band_name)))
+
+            date_of_death = item[3]
+            cause_of_death = item[4]
+            
+            members.append(
+                ShortMember(
+                    id=int(artist_id),
+                    fullname=fullname,
+                    fullname_slug=slug_string(fullname),
+                    country=country,
+                    bands=bands,
+                    date_of_death=date_of_death,
+                    cause_of_death=cause_of_death
+                )
+            )
+        return RipArtistsResults(results=members, total=results['iTotalRecords'])
+
+    @classmethod
+    def extract_bands_by_letter(cls, data: str) -> SearchByLetterResults:
+        soup = BeautifulSoup(data, 'html.parser')
+        results = ast.literal_eval(soup.find('pre').decode_contents())
+        bands = []
+        for item in results['aaData']:
+            html_content = html.unescape(item[0])
+
+            match = re.search(r"'>([^<]+)</a>", html_content)
+            name = match.group(1) if match else html_content
+
+            id_match = re.search(r"/(\d+)'", html_content)
+            band_id = id_match.group(1) if id_match else None
+            country = item[1].strip()
+            genre = item[2].strip()
+            status_match = re.search(r'>([^<]+)<', html.unescape(item[3]))
+            status = status_match.group(1)
+            bands.append(
+                BandSearchByLetter(
+                    id=int(band_id),
+                    name=name,
+                    name_slug=slug_string(name),
+                    genres=genre,
+                    country=country,
+                    status=status
+                )
+            )
+        return SearchByLetterResults(results=bands, total=results['iTotalRecords'])
+
     
     @classmethod
     def extract_stats_info(cls, data: str) -> StatInfo:

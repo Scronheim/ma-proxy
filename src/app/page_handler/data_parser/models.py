@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from datetime import datetime
+from pydantic import BaseModel
 
 @dataclass
 class SocialLink:
@@ -23,6 +24,22 @@ class MemberBand:
     role: str | None = None
 
 @dataclass
+class ShortBandInfo:
+    id: int | None = None
+    band_name: str | None = None
+    band_name_slug: str | None = None
+
+@dataclass
+class ShortMember:
+    id: int | None = None
+    fullname: str | None = None
+    fullname_slug: str | None = None
+    country: str | None = None
+    bands: list[ShortBandInfo] | None = None
+    date_of_death: str | None = None
+    cause_of_death: str | None = None
+
+@dataclass
 class Member:
     id: int | None = None
     fullname: str | None = None
@@ -39,11 +56,6 @@ class Member:
     misc_staff: list[MemberBand] | None = field(default_factory=list)
     links: list[SocialLink] | None = None
     updated_at: datetime | str | None = None
-
-@dataclass
-class RandomBandInfo:
-    id: int | None = None
-    band_name: str | None = None
 
 @dataclass
 class BandStatInfo:
@@ -108,6 +120,7 @@ class Track:
     lyrics: str | None = None
     cdNumber: int | None = None
     side: str | None = None
+    url: str | None = None
 
 @dataclass
 class AlbumInformation:
@@ -161,13 +174,29 @@ class BandInformation:
     updated_at: datetime | str | None = None
     parsing_error: str | None = None
 
+
 @dataclass
 class BandSearch:
     id: int | None = None
     name: str | None = None
     name_slug: str | None = None
-    genre: str | None = None
+    genres: str | None = None
     country: str | None = None
+
+@dataclass
+class BandSearchByLetter(BandSearch):
+    status: str | None = None
+
+@dataclass
+class SearchByLetterResults:
+    total: int
+    results: list[BandSearchByLetter]
+
+@dataclass
+class RipArtistsResults:
+    total: int
+    results: list[ShortMember]
+
 
 @dataclass
 class AlbumSearch:

@@ -62,6 +62,18 @@ class MetalArchivesPageHandler:
             data.data = member_info
         return data
     
+    def get_bands_by_letter(self, url: str) -> PageInfo:
+        data = self._get_data(url)
+        if data.html is not None:
+            data.data = self._parser_cls.extract_bands_by_letter(data=data.html)
+        return data
+    
+    def get_rip_artists(self, url: str) -> PageInfo:
+        data = self._get_data(url)
+        if data.html is not None:
+            data.data = self._parser_cls.extract_rip_artists(data=data.html)
+        return data
+    
     def get_stats(self, url: str) -> PageInfo:
         data = self._get_data(url)
         if data.html is not None:
