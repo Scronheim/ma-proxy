@@ -264,7 +264,7 @@ class PageParser:
                 )
             )
         return RipArtistsResults(results=members, total=results['iTotalRecords'])
-
+    
     @classmethod
     def extract_bands_by_country(cls, data: str) -> SearchByResults:
         soup = BeautifulSoup(data, 'html.parser')
@@ -278,7 +278,7 @@ class PageParser:
 
             id_match = re.search(r"/(\d+)'", html_content)
             band_id = id_match.group(1) if id_match else None
-            genre = item[1].strip()
+            genres = item[1].strip()
             country = item[2].strip()
             status_match = re.search(r'>([^<]+)<', html.unescape(item[3]))
             status = status_match.group(1)
@@ -287,7 +287,7 @@ class PageParser:
                     id=int(band_id),
                     name=name,
                     name_slug=slug_string(name),
-                    genres=genre,
+                    genres=genres,
                     country=country,
                     status=status
                 )
@@ -307,8 +307,8 @@ class PageParser:
 
             id_match = re.search(r"/(\d+)'", html_content)
             band_id = id_match.group(1) if id_match else None
-            genres = item[1].strip()
-            country = item[2].strip()
+            country = item[1].strip()
+            genres = item[2].strip()
             status_match = re.search(r'>([^<]+)<', html.unescape(item[3]))
             status = status_match.group(1)
             bands.append(

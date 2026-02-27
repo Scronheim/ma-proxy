@@ -10,7 +10,7 @@ from app.page_handler.data_parser.models import AlbumInformation, AlbumShortInfo
 from app.page_handler.handler import MetalArchivesPageHandler
 from app.sse.manager import sse_manager
 
-from .models import BandInfoResponse, SearchResponse, SocialLink, SearchByLetterResponse
+from .models import BandInfoResponse, SearchResponse, SocialLink, SearchByResponse
 
 from app.messages import get_start_random_message, get_new_album_message,\
                          get_album_number_message
@@ -38,14 +38,21 @@ class BandRouter(APIRouter):
         self.add_api_route(
             path='/search/letter/{letter}',
             endpoint=self.search_band_by_letter,
-            response_model=SearchByLetterResponse,
+            response_model=SearchByResponse,
             tags=['Parsing'],
             methods=["GET"]
         )
         self.add_api_route(
             path='/search/country/{country}',
             endpoint=self.search_band_by_country,
-            response_model=SearchByLetterResponse,
+            response_model=SearchByResponse,
+            tags=['Parsing'],
+            methods=["GET"]
+        )
+        self.add_api_route(
+            path='/search/genre/{genre}',
+            endpoint=self.search_band_by_genre,
+            response_model=SearchByResponse,
             tags=['Parsing'],
             methods=["GET"]
         )
@@ -58,11 +65,11 @@ class BandRouter(APIRouter):
         )
         self.db = db
 
-    async def search_band_by_country(self, country: str, page: str = '1') -> SearchByLetterResponse:
+    async def search_band_by_genre(self, genre: str, page: str = '1') -> SearchByResponse:
         offset = (int(page) - 1) * 500
         
-        info = self.page_handler.get_bands_by_country(url=f'https://www.metal-archives.com/browse/ajax-country/c/{country}?iDisplayStart={offset}&iSortCol_0=0&sSortDir_0=asc&iSortingCols=1')
-        return SearchByLetterResponse(
+        info = self.page_handler.get_bands_by_genre(url=f'https://www.metal-archives.com/browse/ajax-genre/g/{genre}?iDisplayStart={offset}&iSortCol_0=0&sSortDir_0=asc&iSortingCols=1')
+        return SearchByResponse(
             success=True if info.error is None else False,
             data=info.data,
             error=info.error,
@@ -70,7 +77,19 @@ class BandRouter(APIRouter):
             processing_time=info.processing_time,
         )
     
-    async def search_band_by_letter(self, letter: str, page: str = '1') -> SearchByLetterResponse:
+    async def search_band_by_country(self, country: str, page: str = '1') -> SearchByResponse:
+        offset = (int(page) - 1) * 500
+        
+        info = self.page_handler.get_bands_by_country(url=f'https://www.metal-archives.com/browse/ajax-country/c/{country}?iDisplayStart={offset}&iSortCol_0=0&sSortDir_0=asc&iSortingCols=1')
+        return SearchByResponse(
+            success=True if info.error is None else False,
+            data=info.data,
+            error=info.error,
+            url=info.url,
+            processing_time=info.processing_time,
+        )
+    
+    async def search_band_by_letter(self, letter: str, page: str = '1') -> SearchByResponse:
         if len(letter) > 3:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -78,7 +97,7 @@ class BandRouter(APIRouter):
         )
         offset = (int(page) - 1) * 500
         info = self.page_handler.get_bands_by_letter(url=f'https://www.metal-archives.com/browse/ajax-letter/l/{letter}?iDisplayStart={offset}')
-        return SearchByLetterResponse(
+        return SearchByResponse(
             success=True if info.error is None else False,
             data=info.data,
             error=info.error,

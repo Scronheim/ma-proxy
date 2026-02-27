@@ -35,7 +35,7 @@ class SearchResponse(BaseModel):
     url: str
     processing_time: float
 
-class SearchByLetterResponse(BaseModel):
+class SearchByResponse(BaseModel):
     """Модель ответа поиска групп по букве"""
     success: bool
     data: SearchByResults | None = None
