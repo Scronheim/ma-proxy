@@ -1,9 +1,9 @@
 import dataclasses
 from datetime import datetime
 from typing import Dict, Union
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, status
 from pymongo import AsyncMongoClient
 
 from app.page_handler.data_parser.models import AlbumInformation, AlbumShortInformation, BandInformation, MemberLineUp, OtherBand
@@ -57,6 +57,13 @@ class BandRouter(APIRouter):
             methods=["GET"]
         )
         self.add_api_route(
+            path='/search/advanced',
+            endpoint=self.advance_search,
+            response_model=SearchByResponse,
+            tags=['Parsing'],
+            methods=["GET"]
+        )
+        self.add_api_route(
             path='/{band_id}',
             endpoint=self.parse_band_by_id,
             response_model=BandInfoResponse,
@@ -64,6 +71,20 @@ class BandRouter(APIRouter):
             methods=["GET"]
         )
         self.db = db
+
+    async def advance_search(self, request: Request) -> SearchByResponse:
+        query = dict(request.query_params)
+        page = query.get('page', 1)
+        offset = (int(page) - 1) * 500
+        query['iDisplayStart'] = offset
+        info = self.page_handler.advanced_band_search(url=f'https://www.metal-archives.com/search/ajax-advanced/searching/bands/?{urlencode(query)}')
+        return SearchByResponse(
+            success=True if info.error is None else False,
+            data=info.data,
+            error=info.error,
+            url=info.url,
+            processing_time=info.processing_time,
+        )
 
     async def search_band_by_genre(self, genre: str, page: str = '1') -> SearchByResponse:
         offset = (int(page) - 1) * 500

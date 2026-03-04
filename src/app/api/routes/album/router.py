@@ -1,10 +1,11 @@
 import time
 import dataclasses
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 
 from fastapi import APIRouter, Request
 from pymongo import AsyncMongoClient
 
+from app.api.routes.band.models import SearchByResponse
 from app.page_handler.data_parser.models import AlbumInformation, Track
 from app.page_handler.handler import MetalArchivesPageHandler
 
@@ -24,6 +25,13 @@ class AlbumRouter(APIRouter):
             methods=['GET', ]
         )
         self.add_api_route(
+            path='/search/advanced',
+            endpoint=self.advance_search,
+            response_model=SearchByResponse,
+            tags=['Parsing'],
+            methods=["GET"]
+        )
+        self.add_api_route(
             path='/{album_id}',
             endpoint=self.get_album_by_id,
             response_model=AlbumInfoResponse,
@@ -39,6 +47,20 @@ class AlbumRouter(APIRouter):
         )
         self.db = db
 
+    async def advance_search(self, request: Request) -> SearchByResponse:
+        query = dict(request.query_params)
+        page = query.get('page', 1)
+        offset = (int(page) - 1) * 500
+        query['iDisplayStart'] = offset
+        info = self.page_handler.advanced_album_search(url=f'https://www.metal-archives.com/search/ajax-advanced/searching/albums/?{urlencode(query)}')
+        return SearchByResponse(
+            success=True if info.error is None else False,
+            data=info.data,
+            error=info.error,
+            url=info.url,
+            processing_time=info.processing_time,
+        )
+    
     async def parse_album(self, album_id: str) -> AlbumInfoResponse:
         info = self.page_handler.get_album_info(
             url='https://www.metal-archives.com/albums/view/id/{album_id}'.format(album_id=album_id)

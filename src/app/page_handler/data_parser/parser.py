@@ -2,13 +2,15 @@ import datetime
 import ast
 import re
 import html
-from typing import Dict, Optional, Tuple, List
+from typing import Dict, Optional, List
 
 from bs4 import BeautifulSoup, Tag
 
 from app.page_handler.data_parser.models import (
     AlbumInformation,
     AlbumSearch,
+    AlbumAdvancedSearch,
+    SongAdvancedSearch,
     AlbumShortInformation,
     BandInformation,
     BandLocationInfo,
@@ -35,6 +37,112 @@ from app.utils.utils import slug_string
 class PageParser:
     uid_patter = r'/bands/(?P<slug>[^/]+)/(?P<uid>\d+)'
 
+    @classmethod
+    def extract_advanced_search_song_info(cls, data: str) -> SearchByResults:
+        soup = BeautifulSoup(data, 'html.parser')
+        results = ast.literal_eval(soup.find('pre').decode_contents())
+        albums = []
+        for item in results['aaData']:
+            band_link = html.unescape(item[0])
+            album_link = html.unescape(item[1])
+            album_type = html.unescape(item[2])
+            song_title = html.unescape(item[3])
+            song_link_html = BeautifulSoup(html.unescape(item[4]), 'html.parser')
+            song_link = song_link_html.find('a', href='javascript:;')
+            track_id = song_link.get('id').split('lyricsLink_')[1]
+            
+
+            band_match = re.search(r'">([^<]+)</a>', band_link)
+            band_name = band_match.group(1) if band_match else band_link
+            band_id_match = re.search(r'/(\d+)"', band_link)
+            band_id = band_id_match.group(1) if band_id_match else None
+
+            album_match = re.search(r'">([^<]+)</a>', album_link)
+            album_title = album_match.group(1) if album_match else album_link
+            album_id_match = re.search(r'/(\d+)"', album_link)
+            album_id = album_id_match.group(1) if band_id_match else None
+
+
+            album_type = item[2].strip()
+            albums.append(
+                SongAdvancedSearch(
+                    id=int(track_id),
+                    title=song_title,
+                    title_slug=slug_string(song_title),
+                    band_name=band_name,
+                    band_id=int(band_id),
+                    band_name_slug=slug_string(band_name),
+                    album_id=int(album_id),
+                    album_title=album_title,
+                    album_title_slug=slug_string(album_title),
+                    type=album_type
+                )
+            )
+
+        return SearchByResults(results=albums, total=results['iTotalRecords'])
+    
+    @classmethod
+    def extract_advanced_search_album_info(cls, data: str) -> SearchByResults:
+        soup = BeautifulSoup(data, 'html.parser')
+        results = ast.literal_eval(soup.find('pre').decode_contents())
+        albums = []
+        for item in results['aaData']:
+            band_link = html.unescape(item[0])
+            album_link = html.unescape(item[1])
+
+            band_match = re.search(r'">([^<]+)</a>', band_link)
+            band_name = band_match.group(1) if band_match else band_link
+            band_id_match = re.search(r'/(\d+)"', band_link)
+            band_id = band_id_match.group(1) if band_id_match else None
+
+            album_match = re.search(r'">([^<]+)</a>', album_link)
+            album_title = album_match.group(1) if album_match else album_link
+            album_id_match = re.search(r'/(\d+)"', album_link)
+            album_id = album_id_match.group(1) if band_id_match else None
+
+
+            album_type = item[2].strip()
+            albums.append(
+                AlbumAdvancedSearch(
+                    id=int(album_id),
+                    title=album_title,
+                    title_slug=slug_string(album_title),
+                    band_id=int(band_id),
+                    band_name=band_name,
+                    band_name_slug=slug_string(band_name),
+                    type=album_type
+                )
+            )
+
+        return SearchByResults(results=albums, total=results['iTotalRecords'])
+    
+    @classmethod
+    def extract_advanced_search_band_info(cls, data: str) -> SearchByResults:
+        soup = BeautifulSoup(data, 'html.parser')
+        results = ast.literal_eval(soup.find('pre').decode_contents())
+        bands = []
+        for item in results['aaData']:
+            html_content = html.unescape(item[0])
+
+            match = re.search(r'">([^<]+)</a>', html_content)
+            name = match.group(1) if match else html_content
+
+            id_match = re.search(r'/(\d+)"', html_content)
+            band_id = id_match.group(1) if id_match else None
+            genre = item[1].strip()
+            country = item[2].strip()
+            bands.append(
+                BandSearch(
+                    id=int(band_id),
+                    name=name,
+                    name_slug=slug_string(name),
+                    genres=genre,
+                    country=country,
+                )
+            )
+
+        return SearchByResults(results=bands, total=results['iTotalRecords'])
+    
     @classmethod
     def extract_search_album_info(cls, data: str) -> list[AlbumSearch]:
         soup = BeautifulSoup(data, 'html.parser')

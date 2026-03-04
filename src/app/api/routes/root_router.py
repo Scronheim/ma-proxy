@@ -9,6 +9,7 @@ from .events import EventsRouter
 from .stats import StatsRouter
 from .artists import ArtistsRouter
 from .auth import AuthRouter
+from .song import SongRouter
 
 
 class RootRouter(APIRouter):
@@ -21,6 +22,7 @@ class RootRouter(APIRouter):
         lyrics_router = LyricsRouter(page_handler=page_handler, db=db)
         stats_router = StatsRouter(page_handler=page_handler, db=db)
         artists_router = ArtistsRouter(page_handler=page_handler, db=db)
+        song_router = SongRouter(page_handler=page_handler, db=db)
 
         events_router = EventsRouter(page_handler=page_handler, db=db)
 
@@ -31,6 +33,7 @@ class RootRouter(APIRouter):
         self.include_router(router=lyrics_router)
         self.include_router(router=stats_router)
         self.include_router(router=artists_router)
+        self.include_router(router=song_router)
 
         self.include_router(router=events_router)
 

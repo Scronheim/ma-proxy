@@ -184,6 +184,29 @@ class BandSearch:
     country: str | None = None
 
 @dataclass
+class AlbumAdvancedSearch:
+    id: int | None = None
+    title: str | None = None
+    title_slug: str | None = None
+    band_id: int | None = None
+    band_name: str | None = None
+    band_name_slug: str | None = None
+    type: str | None = None
+
+@dataclass
+class SongAdvancedSearch:
+    id: int | None = None
+    title: str | None = None
+    title_slug: str | None = None
+    band_id: int | None = None
+    band_name: str | None = None
+    band_name_slug: str | None = None
+    album_id: int | None = None
+    album_title: str | None = None
+    album_title_slug: str | None = None
+    type: str | None = None
+
+@dataclass
 class BandSearchBy(BandSearch):
     status: str | None = None
 
@@ -191,6 +214,11 @@ class BandSearchBy(BandSearch):
 class SearchByResults:
     total: int
     results: list[BandSearchBy]
+
+@dataclass
+class AdvancedSearchResults:
+    total: int
+    results: list[BandSearch | AlbumAdvancedSearch | SongAdvancedSearch]
 
 @dataclass
 class RipArtistsResults:
