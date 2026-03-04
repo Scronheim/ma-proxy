@@ -28,9 +28,7 @@ class ArtistsRouter(APIRouter):
         self.db = db
 
     async def parse_rip_artists(self, page: str = '1', year: str = '') -> RipMembersInfoResponse:
-        if page == '1':
-            page = '0'
-        offset = int(page) * 100
+        offset = (int(page) - 1) * 100
         info = self.page_handler.get_rip_artists(
             url=f'https://www.metal-archives.com/artist/ajax-rip?sSearch={year}&iDisplayStart={offset}&iDisplayLength=100&iSortCol_0=3&sSortDir_0=desc&iSortingCols=1'
         )
