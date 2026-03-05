@@ -10,7 +10,7 @@ from app.page_handler.data_parser.models import AlbumInformation, AlbumShortInfo
 from app.page_handler.handler import MetalArchivesPageHandler
 from app.sse.manager import sse_manager
 
-from .models import BandInfoResponse, SearchResponse, SocialLink, SearchByResponse
+from .models import BandInfoResponse, SearchResponse, SocialLink, SearchByResponse, SimilarBandResponse
 
 from app.messages import get_start_random_message, get_new_album_message,\
                          get_album_number_message
@@ -70,8 +70,28 @@ class BandRouter(APIRouter):
             tags=['Parsing'],
             methods=["GET"]
         )
+        self.add_api_route(
+            path='/{band_id}/similar',
+            endpoint=self.parse_band_similar,
+            response_model=SimilarBandResponse,
+            tags=['Parsing'],
+            methods=["GET"]
+        )
         self.db = db
 
+    async def parse_band_similar(self, band_id: str, show_more: bool = False) -> SimilarBandResponse:
+        url = f'https://www.metal-archives.com/band/ajax-recommendations/id/{band_id}'
+        if show_more == True:
+            url = url + '/showMoreSimilar/1'
+        info = self.page_handler.get_band_similar(url=url)
+        return SimilarBandResponse(
+            success=True if info.error is None else False,
+            data=info.data,
+            error=info.error,
+            url=info.url,
+            processing_time=info.processing_time,
+        )
+    
     async def advance_search(self, request: Request) -> SearchByResponse:
         query = dict(request.query_params)
         page = query.get('page', 1)
@@ -146,10 +166,10 @@ class BandRouter(APIRouter):
         band = await self._check_band_in_db(int(band_id))
         url = 'https://www.metal-archives.com/band/view/id/{band_id}'.format(band_id=band_id)
         if band:
-            diff = self._get_date_difference(target_date=band.updated_at)
-            if (band.status == 'Active' or band.status == 'On Hold' or band.status == 'Unknown') and diff['days'] > 15:
-                page_info = self.page_handler.get_band_info(url=url)
-                background_tasks.add_task(self._replace_band_in_db, band=page_info.data)
+            # diff = self._get_date_difference(target_date=band.updated_at)
+            # if (band.status == 'Active' or band.status == 'On Hold' or band.status == 'Unknown') and diff['days'] > 15:
+            #     page_info = self.page_handler.get_band_info(url=url)
+            #     background_tasks.add_task(self._replace_band_in_db, band=page_info.data)
 
             return BandInfoResponse(
                 success=True,

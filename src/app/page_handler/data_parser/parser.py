@@ -29,7 +29,8 @@ from app.page_handler.data_parser.models import (
     SearchByResults,
     ShortMember,
     RipArtistsResults,
-    ShortBandInfo
+    ShortBandInfo,
+    SimilarBand
 )
 from app.utils.utils import slug_string
 
@@ -231,6 +232,11 @@ class PageParser:
 
         return band_info
 
+    @classmethod
+    def extract_band_similar_info(cls, data: str) -> list[SimilarBand]:
+        soup = BeautifulSoup(data, 'html.parser')
+        return cls._get_similar(soup)
+    
     @classmethod
     def extract_discography_info(cls, data: str) -> list[AlbumShortInformation]:
         soup = BeautifulSoup(data, 'html.parser')
@@ -747,6 +753,39 @@ class PageParser:
 
         return members
 
+    @staticmethod
+    def _get_similar(soup: BeautifulSoup) -> list[SimilarBand]:
+        result = []
+        similar_table = soup.find('table')
+        if not similar_table:
+            return result
+
+        band_rows = similar_table.find_all('tr')
+        for row in band_rows:
+            cols = row.find_all('td')
+            count_columns = len(cols)
+            if count_columns < 2:
+                continue
+            
+            if band_link := cols[0].find('a'):
+                band_name = band_link.text.strip()
+                url = band_link.get('href', '')
+                result.append(
+                    SimilarBand(
+                        id=int(url.split('/').pop()),
+                        name=band_name,
+                        name_slug=slug_string(band_name),
+                        country=cols[1].text.strip(),
+                        genres=cols[2].text.strip(),
+                        score=int(cols[3].text.strip())
+                    )
+                )
+        sorted_bands = sorted(
+            result,
+            key=lambda band: band.score,
+            reverse=True
+        )
+        return sorted_bands
     @staticmethod
     def _get_discography(soup: BeautifulSoup) -> list[AlbumShortInformation]:
         result = []

@@ -140,6 +140,15 @@ class AlbumInformation:
     url: str | None = None
 
 @dataclass
+class SimilarBand:
+    id: int | None = None
+    name: str | None = None
+    name_slug: str | None = None
+    country: str | None = None
+    genres: str | None = None
+    score: int | None = None
+
+@dataclass
 class AlbumShortInformation:
     id: int | None = None
     title: str | None = None

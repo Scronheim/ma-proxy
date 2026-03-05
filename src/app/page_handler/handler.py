@@ -42,6 +42,12 @@ class MetalArchivesPageHandler:
             data.data = self._parser_cls.extract_search_album_info(data=data.html)
         return data
     
+    def get_band_similar(self, url: str) -> PageInfo:
+        data = self._get_data(url)
+        if data.html is not None:
+            data.data = self._parser_cls.extract_band_similar_info(data=data.html)
+        return data
+    
     def advanced_band_search(self, url: str) -> PageInfo:
         data = self._get_data(url)
         if data.html is not None:
