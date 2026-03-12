@@ -71,6 +71,13 @@ class BandRouter(APIRouter):
             methods=["GET"]
         )
         self.add_api_route(
+            path='/{band_id}',
+            endpoint=self.update_band_by_id,
+            response_model=BandInfoResponse,
+            tags=['Parsing'],
+            methods=['PATCH']
+        )
+        self.add_api_route(
             path='/{band_id}/similar',
             endpoint=self.parse_band_similar,
             response_model=SimilarBandResponse,
@@ -79,6 +86,17 @@ class BandRouter(APIRouter):
         )
         self.db = db
 
+    async def update_band_by_id(self, band_id: str, band: BandInformation) -> BandInfoResponse:
+        band.name_slug = slug_string(band.name)
+        await self.db.bands.replace_one({'id': int(band_id)}, dataclasses.asdict(band))
+        return BandInfoResponse(
+            success=True,
+            data=band,
+            error=None,
+            url=f'/band/{band_id}',
+            processing_time=0,
+        )
+    
     async def parse_band_similar(self, band_id: str, show_more: bool = False) -> SimilarBandResponse:
         url = f'https://www.metal-archives.com/band/ajax-recommendations/id/{band_id}'
         if show_more == True:
