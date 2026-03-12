@@ -250,7 +250,10 @@ class PageParser:
     @classmethod
     def extract_band_description(cls, data: str) -> str:
         soup = BeautifulSoup(data, 'html.parser')
-        return soup.find('body').decode_contents().replace('https://www.metal-archives.com/bands', '/bands').replace('https://www.metal-archives.com/artists', '/artists')
+        return soup.find('body').decode_contents()\
+            .replace('https://www.metal-archives.com/bands', '/bands') \
+            .replace('https://www.metal-archives.com/albums', '/albums') \
+            .replace('https://www.metal-archives.com/artists', '/artists')
     
     @classmethod
     def extract_member_info(cls, data: str) -> Member:
@@ -463,7 +466,8 @@ class PageParser:
         soup = BeautifulSoup(data, 'html.parser')
         album_info = AlbumInformation()
         try:
-            album_info = cls._get_album_info(cls, soup)
+            album_info = cls._parse_common_album_info(soup, album_info)
+            album_info.tracklist = cls._parse_tracklist(cls, soup)
         except Exception as err:
             album_info.parsing_error = f"Ошибка при разборе HTML: {str(err)}"
 
@@ -522,19 +526,6 @@ class PageParser:
             band_name_elem = soup.find('h2', class_='band_name')
         band_id = band_name_elem.find('a').get('href').split('/').pop()
         return band_name_elem.text.strip(), slug_string(band_name_elem.text.strip()), int(band_id)
-
-    @staticmethod
-    def _get_album_info(cls, soup: BeautifulSoup) -> AlbumInformation:
-        """Получает информацию об альбоме из страницы"""
-        album_info = AlbumInformation()
-        try:
-            album_info = cls._parse_common_album_info(soup, album_info)
-            album_info.tracklist = cls._parse_tracklist(cls, soup)
-
-            return album_info
-        except (AttributeError, IndexError) as err:
-            album_info.parsing_error = f"Ошибка при разборе HTML: {str(err)}"
-            return None
 
     @staticmethod
     def _parse_tracklist(cls, soup: BeautifulSoup) -> list[Track]:

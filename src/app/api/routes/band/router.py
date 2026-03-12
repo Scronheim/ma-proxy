@@ -1,7 +1,8 @@
 import dataclasses
-from datetime import datetime
-from typing import Dict, Union
+from datetime import datetime, timezone
+from typing import Dict, Union, List
 from urllib.parse import quote, urlencode
+import json
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, status
 from pymongo import AsyncMongoClient
@@ -12,8 +13,7 @@ from app.sse.manager import sse_manager
 
 from .models import BandInfoResponse, SearchResponse, SocialLink, SearchByResponse, SimilarBandResponse
 
-from app.messages import get_start_random_message, get_new_album_message,\
-                         get_album_number_message
+from app.messages import get_start_random_message, get_new_album_message, get_album_number_message
 from app.utils.utils import slug_string
 
 
@@ -85,7 +85,7 @@ class BandRouter(APIRouter):
             url = url + '/showMoreSimilar/1'
         info = self.page_handler.get_band_similar(url=url)
         return SimilarBandResponse(
-            success=True if info.error is None else False,
+            success=bool(info.error),
             data=info.data,
             error=info.error,
             url=info.url,
@@ -99,7 +99,7 @@ class BandRouter(APIRouter):
         query['iDisplayStart'] = offset
         info = self.page_handler.advanced_band_search(url=f'https://www.metal-archives.com/search/ajax-advanced/searching/bands/?{urlencode(query)}')
         return SearchByResponse(
-            success=True if info.error is None else False,
+            success=bool(info.error),
             data=info.data,
             error=info.error,
             url=info.url,
@@ -111,7 +111,7 @@ class BandRouter(APIRouter):
         
         info = self.page_handler.get_bands_by_genre(url=f'https://www.metal-archives.com/browse/ajax-genre/g/{genre}?iDisplayStart={offset}&iSortCol_0=0&sSortDir_0=asc&iSortingCols=1')
         return SearchByResponse(
-            success=True if info.error is None else False,
+            success=bool(info.error),
             data=info.data,
             error=info.error,
             url=info.url,
@@ -123,7 +123,7 @@ class BandRouter(APIRouter):
         
         info = self.page_handler.get_bands_by_country(url=f'https://www.metal-archives.com/browse/ajax-country/c/{country}?iDisplayStart={offset}&iSortCol_0=0&sSortDir_0=asc&iSortingCols=1')
         return SearchByResponse(
-            success=True if info.error is None else False,
+            success=bool(info.error),
             data=info.data,
             error=info.error,
             url=info.url,
@@ -139,7 +139,7 @@ class BandRouter(APIRouter):
         offset = (int(page) - 1) * 500
         info = self.page_handler.get_bands_by_letter(url=f'https://www.metal-archives.com/browse/ajax-letter/l/{letter}?iDisplayStart={offset}')
         return SearchByResponse(
-            success=True if info.error is None else False,
+            success=bool(info.error),
             data=info.data,
             error=info.error,
             url=info.url,
@@ -155,21 +155,29 @@ class BandRouter(APIRouter):
             await self._add_band_in_db(info.data)
         background_tasks.add_task(self._replace_band_in_db, band=info.data)
         return BandInfoResponse(
-            success=True if info.error is None else False,
+            success=bool(info.error),
             data=info.data,
             error=info.error,
             url=info.url,
             processing_time=info.processing_time,
         )
 
-    async def parse_band_by_id(self, band_id: str, background_tasks: BackgroundTasks) -> BandInfoResponse:
+    async def parse_band_by_id(self, band_id: str, background_tasks: BackgroundTasks, update: bool = False) -> BandInfoResponse:
         band = await self._check_band_in_db(int(band_id))
+        
         url = 'https://www.metal-archives.com/band/view/id/{band_id}'.format(band_id=band_id)
         if band:
-            # diff = self._get_date_difference(target_date=band.updated_at)
-            # if (band.status == 'Active' or band.status == 'On Hold' or band.status == 'Unknown') and diff['days'] > 15:
-            #     page_info = self.page_handler.get_band_info(url=url)
-            #     background_tasks.add_task(self._replace_band_in_db, band=page_info.data)
+            if update:
+                band_info = self.page_handler.get_band_info(url=url)
+                diff_ids = self._compare_discography(band.discography, band_info.data.discography)
+                band.discography.extend(diff_ids['only_in_ma'])
+                background_tasks.add_task(self._replace_band_in_db, band=band_info.data)
+                return BandInfoResponse(
+                    success=True,
+                    data=band,
+                    url=band_info.url,
+                    processing_time=band_info.processing_time,
+                )
 
             return BandInfoResponse(
                 success=True,
@@ -182,7 +190,7 @@ class BandRouter(APIRouter):
         await self._add_band_in_db(info.data)
         background_tasks.add_task(self._replace_band_in_db, band=info.data)
         return BandInfoResponse(
-            success=True if info.error is None else False,
+            success=bool(info.error),
             data=info.data,
             error=info.error,
             url=info.url,
@@ -198,13 +206,28 @@ class BandRouter(APIRouter):
         info = self.page_handler.search_band_info(search_url)
 
         return SearchResponse(
-            success=True if info.error is None else False,
+            success=bool(info.error),
             data=info.data,
             error=info.error,
             url=info.url,
             processing_time=info.processing_time,
         )
-
+        
+    def _compare_discography(self, albums_in_db: list[AlbumShortInformation], albums_in_ma: list[AlbumShortInformation]) -> Dict[str, List[AlbumShortInformation]]:
+        """
+        Сравнивает два списка альбомов и возвращает различия.
+        """
+        db_ids = {album.id for album in albums_in_db if album.id is not None}
+        ma_ids = {album.id for album in albums_in_ma if album.id is not None}
+        
+        in_db = [album for album in albums_in_db if album.id in ma_ids]
+        only_in_ma = [album for album in albums_in_ma if album.id not in db_ids]
+        
+        return {
+            'in_db': in_db,
+            'only_in_ma': only_in_ma,
+        }
+    
     async def _check_album_in_db(self, album_id: int) -> AlbumInformation | None:
         result = await self.db.albums.find_one({'id': album_id})
         return result
