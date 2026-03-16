@@ -159,7 +159,6 @@ class AlbumShortInformation:
     cover_loading: bool | None = False
     url: str | None = None
 
-
 @dataclass
 class BandInformation:
     id: int | None = None

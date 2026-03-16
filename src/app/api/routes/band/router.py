@@ -2,12 +2,12 @@ import dataclasses
 from datetime import datetime, timezone
 from typing import Dict, Union, List
 from urllib.parse import quote, urlencode
-import json
+import re
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, status
 from pymongo import AsyncMongoClient
 
-from app.page_handler.data_parser.models import AlbumInformation, AlbumShortInformation, BandInformation, MemberLineUp, OtherBand
+from app.page_handler.data_parser.models import AlbumInformation, AlbumShortInformation, BandInformation, MemberLineUp, OtherBand, BandSearch
 from app.page_handler.handler import MetalArchivesPageHandler
 from app.sse.manager import sse_manager
 
@@ -215,20 +215,22 @@ class BandRouter(APIRouter):
             processing_time=info.processing_time,
         )
 
-    async def search_bands(self, query: str) -> SearchResponse:
-        """
-        Search for bands on Metal Archives
-        """
+    async def search_bands(self, query: str, only_local: bool = False) -> SearchResponse:
         encoded_query = quote(query.strip())
-        search_url = f"https://www.metal-archives.com/search/ajax-band-search/?field=name&query={encoded_query}"
-        info = self.page_handler.search_band_info(search_url)
-
+        result = []
+        info = {'error': '', 'url': '', 'processing_time': 0}
+        if only_local:
+            result = await self._search_band_from_db(query)
+        else:
+            search_url = f"https://www.metal-archives.com/search/ajax-band-search/?field=name&query={encoded_query}"
+            info = self.page_handler.search_band_info(search_url)
+            result = info.data
         return SearchResponse(
-            success=bool(info.error),
-            data=info.data,
-            error=info.error,
-            url=info.url,
-            processing_time=info.processing_time,
+            success=True,
+            data=result,
+            error=None,
+            url='',
+            processing_time=0,
         )
         
     def _compare_discography(self, albums_in_db: list[AlbumShortInformation], albums_in_ma: list[AlbumShortInformation]) -> Dict[str, List[AlbumShortInformation]]:
@@ -364,6 +366,23 @@ class BandRouter(APIRouter):
         await sse_manager.send_message(get_album_number_message(len(album_record_ids)))
         await self.db.bands.replace_one({'id': band.id}, dataclasses.asdict(band), upsert=True)
 
+    async def _search_band_from_db(self, band_name: str) -> list[BandSearch]:
+        regex_pattern = re.compile(re.escape(band_name), re.IGNORECASE)
+        cursor = self.db.bands.find({'name': {'$regex': regex_pattern}}, {'_id': 0})
+        aggregate = await cursor.to_list(length=20)
+        if not aggregate:
+            return None
+        result = []
+        for band in aggregate:
+            result.append(BandSearch(
+                id=band['id'],
+                name=band['name'],
+                name_slug=band['name_slug'],
+                genres=band['genres'],
+                country=band['country'],
+            ))
+        return aggregate
+    
     @staticmethod
     def _get_date_difference(
         target_date: Union[str, datetime],
