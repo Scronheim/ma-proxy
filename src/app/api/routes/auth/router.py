@@ -3,6 +3,7 @@ from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, HTTPException, Request, status
 from pymongo import AsyncMongoClient
 from pymongo.errors import DuplicateKeyError
+from pprint import pprint
 
 from app.page_handler.handler import MetalArchivesPageHandler
 from app.core.security import get_password_hash, verify_password, create_access_token, decode_access_token
@@ -161,23 +162,25 @@ class AuthRouter(APIRouter):
                     "bands_ratings": 1,
                     "albums_ratings": 1,
                     "favorite_genre": 1,
-                    "favorite_bands.id": 1,
-                    "favorite_bands.name": 1,
-                    "favorite_bands.name_slug": 1,
-                    "favorite_bands.genres": 1,
-                    "favorite_bands.country": 1,
-                    "favorite_bands.photo_url": 1,
-                    "favorite_bands.logo_url": 1,
-                    "favorite_albums.id": 1,
-                    "favorite_albums.title": 1,
-                    "favorite_albums.title_slug": 1,
-                    "favorite_albums.band_names": 1,
-                    "favorite_albums.band_names_slug": 1,
-                    "favorite_albums.release_date": 1,
-                    "favorite_albums.type": 1,
-                    "favorite_albums.cover_url": 1,
+                    "favorite_bands": 1,
+                    # "favorite_bands.name": 1,
+                    # "favorite_bands.name_slug": 1,
+                    # "favorite_bands.genres": 1,
+                    # "favorite_bands.country": 1,
+                    # "favorite_bands.photo_url": 1,
+                    # "favorite_bands.logo_url": 1,
+                    "favorite_albums": 1,
+                    # "favorite_albums.title": 1,
+                    # "favorite_albums.title_slug": 1,
+                    # "favorite_albums.band_names": 1,
+                    # "favorite_albums.band_names_slug": 1,
+                    # "favorite_albums.release_date": 1,
+                    # "favorite_albums.type": 1,
+                    # "favorite_albums.cover_url": 1,
                 }
             }
         ]
         result = await self.db.users.aggregate(pipeline)
-        return await result.to_list()
+        result = await result.to_list(1)
+        del result[0]['password']
+        return result

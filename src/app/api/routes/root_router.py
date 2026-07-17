@@ -10,6 +10,7 @@ from .stats import StatsRouter
 from .artists import ArtistsRouter
 from .auth import AuthRouter
 from .song import SongRouter
+from .file_manager import create_file_manager_router
 
 
 class RootRouter(APIRouter):
@@ -38,3 +39,18 @@ class RootRouter(APIRouter):
         self.include_router(router=events_router)
 
         self.include_router(router=auth_router)
+
+        file_manager_router = create_file_manager_router(
+            base_directory="/mnt/data/music",
+            route_prefix="/files",
+            allow_delete=True,
+            allow_rename=True,
+            allow_move=True,
+            allow_copy=True,
+            allow_upload=True,
+            allow_create_folder=True,
+            max_file_size=10 * 1024 * 1024 * 1024,  # 10 GB
+            allowed_extensions=[".jpg", ".jpeg", ".png", ".mp3", ".flac", ".zip", ".7z", ".rar"]
+        )
+
+        self.include_router(router=file_manager_router)

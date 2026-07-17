@@ -43,8 +43,8 @@ class Me(BaseModel):
     favorite_genre: str | None = None
     bands_ratings: list[Rating] = Field(default_factory=list)
     albums_ratings: list[Rating] = Field(default_factory=list)
-    favorite_bands: list[ShortBandInfo] | list[int] = Field(default_factory=list)
-    favorite_albums: list[ShortAlbumInfo] | list[int] = Field(default_factory=list)
+    favorite_bands: list[ShortBandInfo | int] = Field(default_factory=list)
+    favorite_albums: list[ShortAlbumInfo | int] = Field(default_factory=list)
     created_at: datetime.datetime = datetime.datetime.now(datetime.timezone.utc)
 
 class Token(BaseModel):
