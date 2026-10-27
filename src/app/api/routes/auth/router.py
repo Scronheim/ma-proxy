@@ -3,13 +3,12 @@ from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, HTTPException, Request, status
 from pymongo import AsyncMongoClient
 from pymongo.errors import DuplicateKeyError
-from pprint import pprint
 
 from app.page_handler.handler import MetalArchivesPageHandler
 from app.core.security import get_password_hash, verify_password, create_access_token, decode_access_token
 from app.core.config import settings
 
-from .models import UserCreate, UserLogin, Me, Token
+from .models import UserCreate, UserLogin, Me, Token, TelegramUser, UserInfoResponse
 
 class AuthRouter(APIRouter):
     def __init__(self, page_handler: MetalArchivesPageHandler, db: AsyncMongoClient, *args, **kwargs):
@@ -47,6 +46,13 @@ class AuthRouter(APIRouter):
             path='/profile/{username}',
             endpoint=self.get_user_profile,
             response_model=Me,
+            tags=['Auth'],
+            methods=['GET']
+        )
+        self.add_api_route(
+            path='/telegram/{user_id}',
+            endpoint=self._get_user_telegram_by_id,
+            response_model=UserInfoResponse,
             tags=['Auth'],
             methods=['GET']
         )
@@ -125,11 +131,11 @@ class AuthRouter(APIRouter):
             detail="Пользователь не найден"
         )
 
-    async def _get_user_by_username(self, username: str):
+    async def _get_user_telegram_by_id(self, user_id: str):
         pipeline = [
             {
                 "$match": {
-                    "username": re.compile(f"^{username}$", re.IGNORECASE),
+                    "telegram.id": int(user_id),
                 }
             },
             {"$limit": 1},
@@ -170,6 +176,7 @@ class AuthRouter(APIRouter):
                     # "favorite_bands.photo_url": 1,
                     # "favorite_bands.logo_url": 1,
                     "favorite_albums": 1,
+                    "telegram": 1,
                     # "favorite_albums.title": 1,
                     # "favorite_albums.title_slug": 1,
                     # "favorite_albums.band_names": 1,
@@ -180,7 +187,72 @@ class AuthRouter(APIRouter):
                 }
             }
         ]
+        tg_user = await self.db.users.aggregate(pipeline)
+        tg_user = await tg_user.to_list(1)
+        return UserInfoResponse(
+            success=True if tg_user else False,
+            data=tg_user[0] if tg_user else None,
+            error='',
+            url='/api/auth/telegram',
+            processing_time=0,
+        )
+
+    async def _get_user_by_username(self, username: str):
+        pipeline = [
+            {
+                "$match": {
+                    "username": re.compile(f"^{username}$", re.IGNORECASE),
+                }
+            },
+            {"$limit": 1},
+            {
+                '$lookup': {
+                    'from': 'bands',
+                    'localField': 'favorite_bands',
+                    'foreignField': 'id',
+                    'as': 'favorite_bands',
+                }
+            },
+            {
+                '$lookup': {
+                    'from': 'albums',
+                    'localField': 'favorite_albums',
+                    'foreignField': 'id',
+                    'as': 'favorite_albums',
+                }
+            },
+            {
+                "$project": {
+                    "username": 1,
+                    "password": 1,
+                    "real_name": 1,
+                    "gender": 1,
+                    "country": 1,
+                    "role": 1,
+                    "avatar_color": 1,
+                    "created_at": 1,
+                    "bands_ratings": 1,
+                    "albums_ratings": 1,
+                    "favorite_genre": 1,
+                    'favorite_bands': 1,
+                    # "favorite_bands.name": 1,
+                    # "favorite_bands.name_slug": 1,
+                    # "favorite_bands.genres": 1,
+                    # "favorite_bands.country": 1,
+                    # "favorite_bands.photo_url": 1,
+                    # "favorite_bands.logo_url": 1,
+                    "favorite_albums": 1,
+                    # "favorite_albums.title": 1,
+                    # "favorite_albums.title_slug": 1,
+                    # "favorite_albums.band_names": 1,
+                    # "favorite_albums.band_names_slug": 1,
+                    # "favorite_albums.release_date": 1,
+                    # "favorite_albums.type": 1,
+                    # "favorite_albums.cover_url": 1,
+                    "telegram": 1,
+                }
+            }
+        ]
         result = await self.db.users.aggregate(pipeline)
         result = await result.to_list(1)
-        del result[0]['password']
         return result

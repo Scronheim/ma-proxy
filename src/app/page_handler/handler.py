@@ -78,6 +78,12 @@ class MetalArchivesPageHandler:
             data.data = self._parser_cls.extract_lyrics_info(data=data.html)
         return data
     
+    def get_quizzes(self, url: str) -> PageInfo:
+        data = self._get_data(url)
+        if data.html is not None:
+            data.data = self._parser_cls.extract_lyrics_info(data=data.html)
+        return data
+    
     def get_member(self, url: str) -> PageInfo:
         data = self._get_data(url)
         if data.html is not None:
@@ -108,6 +114,12 @@ class MetalArchivesPageHandler:
         data = self._get_data(url)
         if data.html is not None:
             data.data = self._parser_cls.extract_rip_artists(data=data.html)
+        return data
+
+    def get_upcoming_releases(self, url: str) -> PageInfo:
+        data = self._get_data(url)
+        if data.html is not None:
+            data.data = self._parser_cls.extract_upcoming_releases(data=data.html)
         return data
     
     def get_stats(self, url: str) -> PageInfo:

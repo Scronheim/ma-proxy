@@ -29,6 +29,8 @@ from app.page_handler.data_parser.models import (
     SearchByResults,
     ShortMember,
     RipArtistsResults,
+    UpcomingReleasesResults,
+    UpcomingRelease,
     ShortBandInfo,
     SimilarBand
 )
@@ -273,6 +275,7 @@ class PageParser:
         gender = right_side[1].get_text(strip=True)
         photo_link = soup.find('a', id='artist')
         photo_url = None
+        print(photo_link, photo_url)
         if photo_link:
             photo_url = photo_link.get('href')
         biography = ''
@@ -382,6 +385,45 @@ class PageParser:
             )
         return RipArtistsResults(results=members, total=results['iTotalRecords'])
     
+    @classmethod
+    def extract_upcoming_releases(cls, data: str) -> UpcomingReleasesResults:
+        soup = BeautifulSoup(data, 'html.parser')
+        results = ast.literal_eval(soup.find('pre').decode_contents())
+        releases = []
+        for item in results['aaData']:
+            band_html_content = html.unescape(item[0])
+            album_html_content = html.unescape(item[1])
+            
+            band_match = re.search(r'">([^<]+)</a>', band_html_content)
+            album_match = re.search(r'">([^<]+)</a>', album_html_content)
+            
+            band_name = band_match.group(1) if band_match else band_html_content
+            band_id_match = re.search(r'/(\d+)', band_html_content)
+            band_id = band_id_match.group(1) if band_id_match else None
+            
+            album_name = album_match.group(1) if album_match else album_html_content
+            album_id_match = re.search(r'/(\d+)', album_html_content)
+            album_id = album_id_match.group(1) if album_id_match else None
+
+            album_type = item[2]
+            genres = item[3]
+            release_date = item[4]
+
+            releases.append(
+                UpcomingRelease(
+                    band_id=int(band_id),
+                    band_name=band_name,
+                    band_name_slug=slug_string(band_name),
+                    album_id=int(album_id),
+                    album_name=album_name,
+                    album_name_slug=slug_string(album_name),
+                    album_type=album_type,
+                    genres=genres,
+                    release_date=release_date
+                )
+            )
+        return UpcomingReleasesResults(results=releases, total=results['iTotalRecords'])
+
     @classmethod
     def extract_bands_by_country(cls, data: str) -> SearchByResults:
         soup = BeautifulSoup(data, 'html.parser')

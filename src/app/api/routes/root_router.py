@@ -10,6 +10,8 @@ from .stats import StatsRouter
 from .artists import ArtistsRouter
 from .auth import AuthRouter
 from .song import SongRouter
+from .quizzes import QuizzesRouter
+from .release import ReleaseRouter
 from .file_manager import create_file_manager_router
 
 
@@ -24,6 +26,8 @@ class RootRouter(APIRouter):
         stats_router = StatsRouter(page_handler=page_handler, db=db)
         artists_router = ArtistsRouter(page_handler=page_handler, db=db)
         song_router = SongRouter(page_handler=page_handler, db=db)
+        quizzes_router = QuizzesRouter(page_handler=page_handler, db=db)
+        release_router = ReleaseRouter(page_handler=page_handler, db=db)
 
         events_router = EventsRouter(page_handler=page_handler, db=db)
 
@@ -35,6 +39,8 @@ class RootRouter(APIRouter):
         self.include_router(router=stats_router)
         self.include_router(router=artists_router)
         self.include_router(router=song_router)
+        self.include_router(router=quizzes_router)
+        self.include_router(router=release_router)
 
         self.include_router(router=events_router)
 

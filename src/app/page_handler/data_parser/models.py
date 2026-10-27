@@ -40,6 +40,18 @@ class ShortMember:
     cause_of_death: str | None = None
 
 @dataclass
+class UpcomingRelease:
+    band_id: int = None
+    album_id: int = None
+    band_name: str = None
+    album_name: str = None
+    band_name_slug: str = None
+    album_name_slug: str = None
+    album_type: str = None
+    genres: str = None
+    release_date: str = None
+
+@dataclass
 class Member:
     id: int | None = None
     fullname: str | None = None
@@ -95,6 +107,7 @@ class MemberLineUp:
     fullname_slug: str | None = None
     role: str | None = None
     url: str | None = None
+    photo_url: str | None = None
     other_bands: list[OtherBand] = field(default_factory=list)
 
 @dataclass
@@ -233,6 +246,11 @@ class RipArtistsResults:
     total: int
     results: list[ShortMember]
 
+@dataclass
+class UpcomingReleasesResults:
+    total: int
+    results: list[UpcomingRelease]
+
 
 @dataclass
 class AlbumSearch:
@@ -244,4 +262,19 @@ class AlbumSearch:
     band_name_slug: str | None = None
     type: str | None = None
     release_date: str | None = None
+
+@dataclass
+class QuizQuestion:
+    question: str | None = None
+    photo_url: str | None = None
+    answers: list[str] = field(default_factory=list)
+    correct_answer: int | None = None
+
+@dataclass
+class Quiz:
+    id: int | None = None
+    title: str | None = None
+    questions: list[QuizQuestion] = field(default_factory=list)
+    category: str | None = None
+    created_at: datetime | str | None = None
 

@@ -2,6 +2,7 @@ import datetime
 
 from pydantic import BaseModel, Field
 
+
 class UserCreate(BaseModel):
     username: str = Field(..., min_length=3, max_length=50)
     password: str = Field(..., min_length=6)
@@ -33,6 +34,14 @@ class Rating(BaseModel):
     id: int
     rating: float
 
+class TelegramUser(BaseModel):
+    id: int
+    auth_date: int
+    first_name: str
+    last_name: str
+    photo_url: str
+    username: str
+
 class Me(BaseModel):
     username: str | None = None
     real_name: str | None = None
@@ -45,8 +54,18 @@ class Me(BaseModel):
     albums_ratings: list[Rating] = Field(default_factory=list)
     favorite_bands: list[ShortBandInfo | int] = Field(default_factory=list)
     favorite_albums: list[ShortAlbumInfo | int] = Field(default_factory=list)
+    telegram: TelegramUser | None = None
     created_at: datetime.datetime = datetime.datetime.now(datetime.timezone.utc)
 
 class Token(BaseModel):
     user: Me | None = None
     token: str | None = None
+
+class UserInfoResponse(BaseModel):
+    """Модель ответа с информацией о пользователе"""
+    success: bool
+    data: Me | None = None
+    error: str | None = None
+    url: str
+    processing_time: float
+

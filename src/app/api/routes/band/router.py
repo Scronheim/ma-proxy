@@ -298,7 +298,8 @@ class BandRouter(APIRouter):
                         OtherBand(**other_band)
                         for other_band in member['other_bands']
                     ],
-                    url=member['url']
+                    url=member['url'],
+                    photo_url=member.get('photo_url', '')
                 )
                 for member in band['current_lineup']
             ],
@@ -312,7 +313,8 @@ class BandRouter(APIRouter):
                         OtherBand(**other_band)
                         for other_band in member['other_bands']
                     ],
-                    url=member['url']
+                    url=member['url'],
+                    photo_url=member.get('photo_url', '')
                 )
                 for member in band['past_lineup']
             ],
