@@ -242,7 +242,7 @@ class PageParser:
     @classmethod
     def extract_lyrics_info(cls, data: str) -> str:
         soup = BeautifulSoup(data, 'html.parser')
-        return soup.find('body').decode_contents()
+        return soup.decode_contents()
     
     @classmethod
     def extract_band_description(cls, data: str) -> str:
