@@ -1,5 +1,4 @@
 import uvicorn
-from seleniumbase import SB
 
 from app.api.application import MetalParserAPI
 from app.page_handler.handler import MetalArchivesPageHandler
