@@ -1,7 +1,16 @@
 from pydantic import BaseModel
+from pymetal import Band
 
-from app.page_handler.data_parser.models import BandInformation, BandSearch, SearchByResults, SocialLink, ShortBandInfo, AdvancedSearchResults, SimilarBand
+from app.page_handler.data_parser.models import BandInformation, BandInformationTest, BandSearch, SearchByResults, SocialLink, ShortBandInfo, AdvancedSearchResults, SimilarBand
 
+
+class BandInfoResponseTest(BaseModel):
+    """Модель ответа с информацией о группе"""
+    success: bool
+    data: BandInformationTest | None = None
+    error: str | None = None
+    url: str
+    processing_time: float
 
 class BandInfoResponse(BaseModel):
     """Модель ответа с информацией о группе"""

@@ -6,19 +6,19 @@ from seleniumbase import SB
 from app.page_handler.data_parser.models import AlbumShortInformation
 from app.page_handler.data_parser.parser import PageParser
 from app.page_handler.models import PageInfo
+from app.utils.http import default_client
 
 
 class MetalArchivesPageHandler:
     _instance: Optional["MetalArchivesPageHandler"] = None
 
-    def __new__(cls, sb: SB, *args, **kwargs) -> "MetalArchivesPageHandler":
+    def __new__(cls, *args, **kwargs) -> "MetalArchivesPageHandler":
         if cls._instance is None:
             cls._instance = super().__new__(cls)
         return cls._instance
 
-    def __init__(self, sb: SB):
+    def __init__(self):
         self._parser_cls = PageParser
-        self._sb = sb
 
     def get_band_info(self, url: str) -> PageInfo:
         data = self._get_data(url)
@@ -161,7 +161,8 @@ class MetalArchivesPageHandler:
     ) -> PageInfo:
         start_time = time.time()
         try:
-            self._sb.uc_open_with_tab(url)
+            result = default_client.get(url, None, False)
+            # self._sb.uc_open_with_tab(url)
             # self._sb.uc_gui_click_captcha()
             # self._sb.uc_gui_click_cf()
             # time.sleep(wait_time)
@@ -169,18 +170,12 @@ class MetalArchivesPageHandler:
             return PageInfo(
                 url=url,
                 processing_time=round(time.time() - start_time, 2),
-                html=self._sb.get_page_source(),
+                html=result.text,
             )
 
         except Exception as err:
             error_msg = f"Ошибка при парсинге: {str(err)}"
-            if save_screenshot:
-                try:
-                    screenshot_name = f"error_{int(time.time())}.png"
-                    self._sb.save_screenshot(screenshot_name)
-                    error_msg += f" (скриншот сохранен как {screenshot_name})"
-                except:
-                    pass
+            print(error_msg)
 
             return PageInfo(
                 url=url,

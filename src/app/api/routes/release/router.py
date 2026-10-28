@@ -20,7 +20,7 @@ class ReleaseRouter(APIRouter):
         )
         self.db = db
 
-    async def parse_upcoming_releases(self, page: str = '1', year: str = '') -> UpcomingReleasesInfoResponse:
+    async def parse_upcoming_releases(self, page: str = '1') -> UpcomingReleasesInfoResponse:
         offset = (int(page) - 1) * 100
         info = self.page_handler.get_upcoming_releases(
             url=f'https://www.metal-archives.com/release/ajax-upcoming/json?iDisplayStart={offset}&iDisplayLength=100'

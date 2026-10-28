@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 from pydantic import BaseModel
+from pymetal import Band, Release
 
 @dataclass
 class SocialLink:
@@ -20,7 +21,7 @@ class MemberBand:
     id: int | None = None
     name: str | None = None
     name_slug: str | None = None
-    albums: list[MemberAlbum] | None = None
+    albums: list[MemberAlbum] | None = field(default_factory=list)
     role: str | None = None
 
 @dataclass
@@ -35,7 +36,7 @@ class ShortMember:
     fullname: str | None = None
     fullname_slug: str | None = None
     country: str | None = None
-    bands: list[ShortBandInfo] | None = None
+    bands: list[ShortBandInfo] | None = field(default_factory=list)
     date_of_death: str | None = None
     cause_of_death: str | None = None
 
@@ -66,7 +67,7 @@ class Member:
     guest_session: list[MemberBand] | None = field(default_factory=list)
     live: list[MemberBand] | None = field(default_factory=list)
     misc_staff: list[MemberBand] | None = field(default_factory=list)
-    links: list[SocialLink] | None = None
+    links: list[SocialLink] | None = field(default_factory=list)
     updated_at: datetime | str | None = None
 
 @dataclass
@@ -171,6 +172,11 @@ class AlbumShortInformation:
     cover_url: str | None = None
     cover_loading: bool | None = False
     url: str | None = None
+
+@dataclass
+class BandInformationTest:
+    band: Band
+    discography: list[Release] = field(default_factory=list)
 
 @dataclass
 class BandInformation:

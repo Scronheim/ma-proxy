@@ -6,12 +6,13 @@ import re
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, status
 from pymongo import AsyncMongoClient
+from pymetal import MetalArchives
 
-from app.page_handler.data_parser.models import AlbumInformation, AlbumShortInformation, BandInformation, MemberLineUp, OtherBand, BandSearch
+from app.page_handler.data_parser.models import AlbumInformation, AlbumShortInformation, BandInformation, BandInformationTest, MemberLineUp, OtherBand, BandSearch
 from app.page_handler.handler import MetalArchivesPageHandler
 from app.sse.manager import sse_manager
 
-from .models import BandInfoResponse, SearchResponse, SocialLink, SearchByResponse, SimilarBandResponse
+from .models import BandInfoResponse, BandInfoResponseTest, SearchResponse, SocialLink, SearchByResponse, SimilarBandResponse
 
 from app.messages import get_start_random_message, get_new_album_message, get_album_number_message
 from app.utils.utils import slug_string
@@ -21,6 +22,7 @@ class BandRouter(APIRouter):
     def __init__(self, page_handler: MetalArchivesPageHandler, db: AsyncMongoClient, *args, **kwargs):
         super().__init__(prefix='/band', *args, **kwargs)
         self.page_handler = page_handler
+        self.ma = MetalArchives()
         self.add_api_route(
             path='/random',
             endpoint=self.parse_random,
@@ -66,6 +68,13 @@ class BandRouter(APIRouter):
         self.add_api_route(
             path='/{band_id}',
             endpoint=self.parse_band_by_id,
+            response_model=BandInfoResponse,
+            tags=['Parsing'],
+            methods=["GET"]
+        )
+        self.add_api_route(
+            path='/test/{band_id}',
+            endpoint=self.parse_band_by_id_test,
             response_model=BandInfoResponse,
             tags=['Parsing'],
             methods=["GET"]
@@ -180,6 +189,72 @@ class BandRouter(APIRouter):
             processing_time=info.processing_time,
         )
 
+    async def parse_band_by_id_test(self, band_id: str, background_tasks: BackgroundTasks, update: bool = False):
+        band = self.ma.get_band(band_id=band_id)
+        discography_r = self.ma.get_discography(band_id=band_id)
+        lineup_r = self.ma.get_lineup(band_id=band_id)
+        links_r = self.ma.get_links(entity_id=band_id)
+
+        discography = []
+        for release in discography_r:
+            discography.append(AlbumShortInformation(
+                id=release.ma_id,
+                title=release.title,
+                title_slug=slug_string(release.title),
+                type=release.type,
+                cover_loading=True,
+                cover_url=release.cover_url,
+                release_date=release.release_date,
+            ))
+
+        current_lineup = []
+        past_lineup = []
+        for artist in lineup_r:
+            member = MemberLineUp(
+                id=artist.artist_id,
+                fullname=artist.artist_name,
+                fullname_slug=slug_string(artist.artist_name),
+                role=artist.role
+            )
+            if artist.status == "current":
+                current_lineup.append(member)
+            elif artist.status == "past":
+                past_lineup.append(member)
+        
+        links = []
+        for link in links_r:
+            links.append(SocialLink(
+                social=link.name,
+                url=link.url
+            ))
+        
+        return BandInfoResponse(
+            success=True,
+            data=BandInformation(
+                id=band.ma_id,
+                discography=discography,
+                country=band.country,
+                city=band.location,
+                current_lineup=current_lineup,
+                description=band.comment,
+                formed_in=band.formed_in,
+                genres=band.genres,
+                label=band.current_label_name,
+                links=links,
+                logo_url=band.logo_url,
+                name=band.name,
+                name_slug=slug_string(band.name),
+                past_lineup=past_lineup,
+                photo_url=band.photo_url,
+                status=band.status,
+                themes=band.themes,
+                years_active=band.years_active,
+                parsing_error=None,
+
+            ),
+            url="",
+            processing_time=0.0,
+        )
     async def parse_band_by_id(self, band_id: str, background_tasks: BackgroundTasks, update: bool = False) -> BandInfoResponse:
         band = await self._check_band_in_db(int(band_id))
         

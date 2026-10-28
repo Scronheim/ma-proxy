@@ -2,6 +2,7 @@ import datetime
 import ast
 import re
 import html
+import json
 from typing import Dict, Optional, List
 
 from bs4 import BeautifulSoup, Tag
@@ -42,8 +43,7 @@ class PageParser:
 
     @classmethod
     def extract_advanced_search_song_info(cls, data: str) -> SearchByResults:
-        soup = BeautifulSoup(data, 'html.parser')
-        results = ast.literal_eval(soup.find('pre').decode_contents())
+        results = json.loads(data)
         albums = []
         for item in results['aaData']:
             band_link = html.unescape(item[0])
@@ -86,8 +86,7 @@ class PageParser:
     
     @classmethod
     def extract_advanced_search_album_info(cls, data: str) -> SearchByResults:
-        soup = BeautifulSoup(data, 'html.parser')
-        results = ast.literal_eval(soup.find('pre').decode_contents())
+        results = json.loads(data)
         albums = []
         for item in results['aaData']:
             band_link = html.unescape(item[0])
@@ -121,16 +120,15 @@ class PageParser:
     
     @classmethod
     def extract_advanced_search_band_info(cls, data: str) -> SearchByResults:
-        soup = BeautifulSoup(data, 'html.parser')
-        results = ast.literal_eval(soup.find('pre').decode_contents())
+        results = json.loads(data)
         bands = []
         for item in results['aaData']:
             html_content = html.unescape(item[0])
 
-            match = re.search(r'">([^<]+)</a>', html_content)
+            match = re.search(r">([^<]+)</a>", html_content)
             name = match.group(1) if match else html_content
 
-            id_match = re.search(r'/(\d+)"', html_content)
+            id_match = re.search(r"/(\d+)", html_content)
             band_id = id_match.group(1) if id_match else None
             genre = item[1].strip()
             country = item[2].strip()
@@ -148,11 +146,9 @@ class PageParser:
     
     @classmethod
     def extract_search_album_info(cls, data: str) -> list[AlbumSearch]:
-        soup = BeautifulSoup(data, 'html.parser')
-        soup
-        results = ast.literal_eval(soup.find('pre').text)['aaData']
+        results = json.loads(data)
         albums = []
-        for album in results:
+        for album in results['aaData']:
             band_soup = BeautifulSoup(album[0], 'html.parser').find('a')
             band_id = band_soup.get('href').split('/').pop()
             band_name = band_soup.text.strip()
@@ -179,11 +175,10 @@ class PageParser:
 
     @classmethod
     def extract_search_band_info(cls, data: str) -> list[BandSearch]:
-        soup = BeautifulSoup(data, 'html.parser')
-        results = ast.literal_eval(soup.find('pre').text)['aaData']
+        results = json.loads(data)
         bands = []
-        for item in results:
-            html_content = item[0]
+        for item in results['aaData']:
+            html_content = html.unescape(item[0])
 
             match = re.search(r'">([^<]+)</a>', html_content)
             name = match.group(1) if match else html_content
@@ -252,7 +247,7 @@ class PageParser:
     @classmethod
     def extract_band_description(cls, data: str) -> str:
         soup = BeautifulSoup(data, 'html.parser')
-        return soup.find('body').decode_contents()\
+        return soup.decode_contents()\
             .replace('https://www.metal-archives.com/bands', '/bands') \
             .replace('https://www.metal-archives.com/albums', '/albums') \
             .replace('https://www.metal-archives.com/artists', '/artists')
@@ -346,13 +341,13 @@ class PageParser:
     
     @classmethod
     def extract_rip_artists(cls, data: str) -> RipArtistsResults:
-        soup = BeautifulSoup(data, 'html.parser')
-        results = ast.literal_eval(soup.find('pre').decode_contents())
+        results = json.loads(data)
         members = []
         for item in results['aaData']:
             html_content = html.unescape(item[0])
 
-            match = re.search(r'">([^<]+)</a>', html_content)
+            match = re.search(r">([^<]+)</a>", html_content)
+            
             fullname = match.group(1) if match else html_content
             artist_id_match = re.search(r'/(\d+)', html_content)
             artist_id = artist_id_match.group(1) if artist_id_match else None
@@ -387,15 +382,14 @@ class PageParser:
     
     @classmethod
     def extract_upcoming_releases(cls, data: str) -> UpcomingReleasesResults:
-        soup = BeautifulSoup(data, 'html.parser')
-        results = ast.literal_eval(soup.find('pre').decode_contents())
+        results = json.loads(data)
         releases = []
         for item in results['aaData']:
             band_html_content = html.unescape(item[0])
             album_html_content = html.unescape(item[1])
             
-            band_match = re.search(r'">([^<]+)</a>', band_html_content)
-            album_match = re.search(r'">([^<]+)</a>', album_html_content)
+            band_match = re.search(r">([^<]+)</a>", band_html_content)
+            album_match = re.search(r">([^<]+)</a>", album_html_content)
             
             band_name = band_match.group(1) if band_match else band_html_content
             band_id_match = re.search(r'/(\d+)', band_html_content)
@@ -426,8 +420,7 @@ class PageParser:
 
     @classmethod
     def extract_bands_by_country(cls, data: str) -> SearchByResults:
-        soup = BeautifulSoup(data, 'html.parser')
-        results = ast.literal_eval(soup.find('pre').decode_contents())
+        results = json.loads(data)
         bands = []
         for item in results['aaData']:
             html_content = html.unescape(item[0])
@@ -455,8 +448,7 @@ class PageParser:
     
     @classmethod
     def extract_bands_by_letter(cls, data: str) -> SearchByResults:
-        soup = BeautifulSoup(data, 'html.parser')
-        results = ast.literal_eval(soup.find('pre').decode_contents())
+        results = json.loads(data)
         bands = []
         for item in results['aaData']:
             html_content = html.unescape(item[0])
@@ -481,8 +473,7 @@ class PageParser:
                 )
             )
         return SearchByResults(results=bands, total=results['iTotalRecords'])
-
-    
+   
     @classmethod
     def extract_stats_info(cls, data: str) -> StatInfo:
         soup = BeautifulSoup(data, 'html.parser')
